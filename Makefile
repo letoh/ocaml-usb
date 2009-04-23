@@ -5,14 +5,8 @@
 #
 # This file is a part of ocaml-usb.
 
-OC = ocamlbuild
+OC = ocamlbuild -classic-display
 OF = ocamlfind
-
-# Use classic-display when compiling under a terminal which do not
-# support ANSI sequence
-ifeq ($(TERM),dumb)
-OC += -classic-display
-endif
 
 # Project name
 NAME = usb

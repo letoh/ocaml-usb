@@ -103,18 +103,6 @@ let get_version _ =
     | version :: _ -> version
     | _ -> failwith "invalid VERSION file"
 
-(* +-------------+
-   | For C stubs |
-   +-------------+ *)
-
-(* these functions are not really officially exported *)
-let run_and_read = Ocamlbuild_pack.My_unix.run_and_read
-let blank_sep_strings = Ocamlbuild_pack.Lexers.blank_sep_strings
-let exec cmd = blank_sep_strings (Lexing.from_string (run_and_read cmd))
-let get_args cmd = List.map (fun x -> A x) (exec cmd)
-let usb_opt = get_args "pkg-config --cflags libusb-1.0"
-let usb_lib = get_args "pkg-config --libs libusb-1.0"
-
 let _ =
   dispatch begin function
     | Before_options ->
@@ -167,21 +155,38 @@ let _ =
            | C stubs |
            +---------+ *)
 
+        (* Search 'pkg-config': *)
+        let pkg_config = try
+          Command.search_in_path "pkg-config"
+        with
+            Not_found ->
+              failwith "The program ``pkg-config'' is required but not found, please intall it"
+        in
+        let get_args cmd =
+          Command.execute ~quiet:true & Cmd(S[cmd; Sh ">"; A"pkg-config.output"]);
+          List.map (fun arg -> A arg) (string_list_of_file "pkg-config.output")
+        in
+
+        (* Get flags for libusb-1.0 using pkg-config: *)
+        let usb_opt = get_args & S[A pkg_config; A"--cflags"; A"libusb-1.0"]
+        and usb_lib = get_args & S[A pkg_config; A"--libs"; A"libusb-1.0"] in
+
+        (* Dependency for automatic compliation of C stubs: *)
         dep ["link"; "ocaml"; "use_stubs"] ["libusb_stubs.a"];
+
+        (* Link code using C stubs with '-lusb_stubs': *)
         flag ["link"; "library"; "ocaml"; "use_stubs"] & S[A"-cclib"; A"-lusb_stubs"];
+
+        (* For libraries add also a '-dllib' option for automatic
+           addition of '-cclib -lusb_stubs' when using the library: *)
         flag ["link"; "library"; "ocaml"; "byte"; "use_stubs"] & S[A"-dllib"; A"-lusb_stubs"];
 
+        (* Add flags for linking with the C library libusb: *)
         flag ["ocamlmklib"; "c"; "use_libusb"] & S usb_lib;
 
-        let prefix_args prefix args =
-          S(List.concat (List.map (fun arg -> [A prefix; arg]) args))
-        in
-        let ccopt = prefix_args "-ccopt" usb_opt
-        and cclib = prefix_args "-cclib" usb_lib in
-
-        flag ["c"; "compile"; "use_libusb"] & ccopt;
-        flag ["link"; "ocaml"; "use_libusb"] & S[ccopt; cclib];
-        flag ["link"; "ocaml"; "use_usb"] & S[A"-cclib"; A"-L."];
+        (* C stubs using libusb must be compiled with libusb specifics
+           flags: *)
+        flag ["c"; "compile"; "use_libusb"] & S(List.map (fun arg -> S[A"-ccopt"; arg]) usb_opt);
 
         (* +-------+
            | Other |

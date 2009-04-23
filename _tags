@@ -1,6 +1,32 @@
 # -*- conf -*-
 
-<usb.*>: use_libusb, use_stubs
+# +-------------------------+
+# | External ocaml packages |
+# +-------------------------+
+
 <src/*>: pkg_lwt
+<examples/*>: pkg_lwt
+
+# +---------+
+# | C stubs |
+# +---------+
+
+# Tags description:
+#
+# * "use_stubs" is for files using the stubs for libusb,
+#   i.e. "src/usb_stubs.c"
+#
+# * "use_libusb" is for files using the C library "libusb-1.0"
+#
+# * "use_usb" is for files using the ocaml library "usb",
+#   i.e. requiring "usb.cma" or "usb.cmxa".
+
+# The ocaml library uses C stubs:
+<usb.*>: use_stubs
+
+# C stubs use the C library libusb:
+<libusb_stubs.*>: use_libusb
 <src/usb_stubs.*>: use_libusb
-<examples/*>: use_usb, use_libusb
+
+# Examples use the ocaml library "usb":
+<examples/*>: use_usb
