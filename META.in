@@ -1,0 +1,7 @@
+# -*- conf -*-
+name = "usb"
+version = "@VERSION@"
+browse_interfaces = "USB"
+description = "Bindings for libusb-1.0"
+archive(byte) = "usb.cma"
+archive(native) = "usb.cmxa"

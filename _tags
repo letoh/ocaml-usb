@@ -1,0 +1,6 @@
+# -*- conf -*-
+
+<usb.*>: use_libusb, use_stubs
+<src/*>: pkg_lwt
+<src/usb_stubs.*>: use_libusb
+<examples/*>: use_usb, use_libusb
