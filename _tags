@@ -21,8 +21,8 @@
 # * "use_usb" is for files using the ocaml library "usb",
 #   i.e. requiring "usb.cma" or "usb.cmxa".
 
-# The ocaml library uses C stubs:
-<usb.*>: use_stubs
+# The ocaml library uses C stubs and must depends on the C library:
+<usb.*>: use_stubs, use_libusb
 
 # C stubs use the C library libusb:
 <libusb_stubs.*>: use_libusb

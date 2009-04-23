@@ -163,8 +163,10 @@ let _ =
               failwith "The program ``pkg-config'' is required but not found, please intall it"
         in
         let get_args cmd =
-          Command.execute ~quiet:true & Cmd(S[cmd; Sh ">"; A"pkg-config.output"]);
-          List.map (fun arg -> A arg) (string_list_of_file "pkg-config.output")
+          with_temp_file "ocaml-usb" "pkg-config"
+            (fun tmp ->
+               Command.execute ~quiet:true & Cmd(S[cmd; Sh ">"; A tmp]);
+               List.map (fun arg -> A arg) (string_list_of_file tmp))
         in
 
         (* Get flags for libusb-1.0 using pkg-config: *)
@@ -184,9 +186,15 @@ let _ =
         (* Add flags for linking with the C library libusb: *)
         flag ["ocamlmklib"; "c"; "use_libusb"] & S usb_lib;
 
+        let ccopt = S(List.map (fun arg -> S[A"-ccopt"; arg]) usb_opt)
+        and cclib = S(List.map (fun arg -> S[A"-cclib"; arg]) usb_lib) in
+
         (* C stubs using libusb must be compiled with libusb specifics
            flags: *)
-        flag ["c"; "compile"; "use_libusb"] & S(List.map (fun arg -> S[A"-ccopt"; arg]) usb_opt);
+        flag ["c"; "compile"; "use_libusb"] & ccopt;
+
+        (* OCaml llibraries must depends on the C library libusb: *)
+        flag ["link"; "ocaml"; "use_libusb"] & cclib;
 
         (* +-------+
            | Other |
