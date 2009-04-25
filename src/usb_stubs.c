@@ -52,7 +52,7 @@ int error_num_of_code(int code)
 }
 
 /* If code != 0, raise [USB.Error(fun_name, err)] */
-void error(int code, char *fun_name)
+void check_error(int code, char *fun_name)
 {
   if (code) {
     value args[2];
@@ -62,7 +62,7 @@ void error(int code, char *fun_name)
   }
 }
 
-#define check(code, fun_name) error((int)(code), (fun_name))
+#define check(code, fun_name) check_error((int)(code), (fun_name))
 
 /* +----------------+
    | Initialization |
@@ -153,7 +153,7 @@ CAMLprim value ml_usb_get_device_list(value unit)
 
   size_t cnt = libusb_get_device_list(NULL, &devices);
   if (cnt < 0)
-    error(cnt, "get_device_list");
+    check_error(cnt, "get_device_list");
 
   /* Convert the array to a caml list */
   size_t i;
