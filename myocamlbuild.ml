@@ -196,6 +196,9 @@ let _ =
         (* OCaml llibraries must depends on the C library libusb: *)
         flag ["link"; "ocaml"; "use_libusb"] & cclib;
 
+        (* Otherwise the linker does not found the stubs: *)
+        flag ["link"; "ocaml"; "use_usb"] & S[A"-cclib"; A"-L."];
+
         (* +-------+
            | Other |
            +-------+ *)

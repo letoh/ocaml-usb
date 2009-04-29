@@ -1,1 +1,2 @@
-examples/list_devices.byte
+examples/list_devices.native
+examples/krobot_get_firmware.native
