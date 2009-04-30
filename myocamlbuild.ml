@@ -19,7 +19,7 @@ open Ocamlbuild_plugin
 
    - byte-code-file is the byte-code for the syntax extension
 *)
-let intern_syntaxes = []
+let intern_syntaxes = [ ]
 
 (* +-----------+
    | Ocamlfind |

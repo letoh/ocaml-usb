@@ -9,40 +9,19 @@
 
 (** Module for USB communication *)
 
-(** {6 Errors} *)
+(** {6 General errors} *)
 
-type error =
-  | Error_io
-      (** Input/output error *)
-  | Error_invalid_param
-      (** Invalid parameter *)
-  | Error_access
-      (** Access denied (insufficient permissions) *)
-  | Error_no_device
-      (** No such device (it may have been disconnected) *)
-  | Error_not_found
-      (** Entity not found *)
-  | Error_busy
-      (** Resource busy *)
-  | Error_timeout
-      (** Operation timed out *)
-  | Error_overflow
-      (** Overflow *)
-  | Error_pipe
-      (** Pipe error *)
-  | Error_interrupted
-      (** System call interrupted (perhaps due to signal) *)
-  | Error_no_mem
-      (** Insufficient memory *)
-  | Error_not_supported
-      (** Operation not supported or unimplemented on this platform *)
-  | Error_other
-      (** Other error *)
+exception Access_denied
+  (** Access denied to the peripheral *)
 
-exception Error of string * error
-  (** [Error(fun_name, error)] exception raised when an error
-      happen. [fun_name] is the function name which raised the
-      exception and [error] is the error itself. *)
+exception No_device
+  (** A device does not exists (it may have been disconnected) *)
+
+exception Device_busy
+  (** Resource busy *)
+
+exception Not_supported
+  (** Operation not supported or unimplemented on this platform *)
 
 (** {6 Types} *)
 
@@ -89,23 +68,40 @@ val get_max_packet_size : device : device -> direction : direction -> endpoint :
 type handle
   (** A handle allows you to perform I/O on the device in question. *)
 
+type interface = int
+    (** An interface number on a device *)
+
 val open_device : device -> handle
   (** Open a device and obtain a device handle.
 
       A handle allows you to perform I/O on the device in question. *)
 
-val open_device_with : vendor_id : int -> product_id : int -> handle option
+val open_device_with : vendor_id : int -> product_id : int -> handle
   (** [open_device_with ~vendor_id ~product_id]
 
       Convenience function for finding a device with a particular
       idVendor/idProduct combination.
 
-      This function has limitations and is hence not intended for use
-      in real applications: if multiple devices have the same IDs it
-      will only give you the first one, etc. *)
+      @raise Failure if the device is not found. *)
 
 val get_device : handle -> device
   (** Get the underlying device for a handle *)
+
+val kernel_driver_active : handle -> interface -> bool
+  (** Determine if a kernel driver is active on an interface.
+
+      If a kernel driver is active, you cannot claim the interface,
+      and libusb will be unable to perform I/O. *)
+
+val detach_kernel_driver : handle -> interface -> unit
+  (** Detach a kernel driver from an interface.
+
+      If successful, you will then be able to claim the interface and
+      perform I/O. *)
+
+val attach_kernel_driver : handle -> interface -> unit
+  (** Re-attach an interface's kernel driver, which was previously
+      detached using {!detach_kernel_driver}. *)
 
 val claim_interface : handle -> int -> unit
   (** [claim_interface handle interface_number]
@@ -125,63 +121,60 @@ val release_interface : handle -> int -> unit
       will be sent to the device, resetting interface state to the
       first alternate setting. *)
 
-(** {6 IO} *)
-(*
+(** {6 IOs} *)
+
+(** {8 Errors} *)
+
+exception Failed
+  (** The transfer failed to complete for some reason. *)
+
+exception Timeout
+  (** The timeout of the transfer expired *)
+
+exception Stalled
+  (** For buld/interrupt endpoints: halt condition detected *)
+
+exception Overflow
+  (** Buffer overflow on transfers. This may happen with buggy
+      devices. *)
+
+(** {8 Bulk transfers} *)
+
 val bulk_recv :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  buffer : string ->
-  offset : int ->
-  length : int -> int Lwt.t
-  (** [bulk_recv ~handle ~endpoint ?timeout ~buffer ~offset ~length] *)
+  string -> int -> int -> int Lwt.t
+  (** [bulk_recv ~handle ~endpoint ?timeout buffer offset length] *)
 
 val bulk_send :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  buffer : string ->
-  offset : int ->
-  length : int -> int Lwt.t
-  (** [bulk_send ~handle ~endpoint ?timeout ~buffer ~offset ~length] *)
-*)
+  string -> int -> int -> int Lwt.t
+  (** [bulk_send ~handle ~endpoint ?timeout buffer offset length] *)
+
+(** {8 Interrupt transfers} *)
+
 val interrupt_recv :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  buffer : string ->
-  offset : int ->
-  length : int -> unit -> int Lwt.t
-  (** [interrupt_recv ~handle ~endpoint ?timeout ~buffer ~offset ~length] *)
+  string -> int -> int -> int Lwt.t
+  (** [interrupt_recv ~handle ~endpoint ?timeout buffer offset length] *)
 
 val interrupt_send :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  buffer : string ->
-  offset : int ->
-  length : int -> unit -> int Lwt.t
-  (** [interrupt_send ~handle ~endpoint ?timeout ~buffer ~offset ~length] *)
-(*
-val iso_recv :
-  handle : handle ->
-  endpoint : endpoint ->
-  ?timeout : float ->
-  packet_count : int ->
-  buffer : string ->
-  offset : int ->
-  length : int -> int Lwt.t
-  (** [iso_recv ~handle ~endpoint ?timeout ~packet_count ~buffer ~offset ~length] *)
+  string -> int -> int -> int Lwt.t
+  (** [interrupt_send ~handle ~endpoint ?timeout buffer offset length] *)
 
-val iso_send :
-  handle : handle ->
-  endpoint : endpoint ->
-  ?timeout : float ->
-  packet_count : int ->
-  buffer : string ->
-  offset : int ->
-  length : int -> int Lwt.t
-  (** [iso_send ~handle ~endpoint ?timeout ~packet_count ~buffer ~offset ~length] *)
+(** {8 Isochronous transfers} *)
+
+(** TODO *)
+
+(** {8 Control transfers} *)
 
 type recipient =
   | Device
@@ -196,7 +189,7 @@ type request_type =
   | Reserved
 
 type request = int
-
+(*
 val control_send :
   handle : handle ->
   endpoint : endpoint ->
@@ -205,9 +198,7 @@ val control_send :
   request : request ->
   value : int ->
   index : int ->
-  buffer : string ->
-  offset : int ->
-  length : int -> unit Lwt.t
+  string -> int -> int -> unit Lwt.t
 
 val control_recv :
   handle : handle ->
@@ -217,42 +208,43 @@ val control_recv :
   request : request ->
   value : int ->
   index : int ->
-  buffer : string ->
-  offset : int ->
-  length : int -> unit Lwt.t
-
-(** {6 Standard requests} *)
-
-val request_get_status : request
-  (** Request status of the specific recipient *)
-
-val request_clear_feature : request
-  (** Clear or disable a specific feature *)
-
-val request_set_feature : request
-  (** Set or enable a specific feature *)
-
-val request_set_address : request
-  (** Set device address for all future accesses *)
-
-val request_get_descriptor : request
-  (** Get the specified descriptor *)
-
-val request_set_descriptor : request
-  (** Used to update existing descriptors or add new descriptors *)
-
-val request_get_configuration : request
-  (** Get the current device configuration value *)
-
-val request_set_configuration : request
-  (** Set device configuration *)
-
-val request_get_interface : request
-  (** Return the selected alternate setting for the specified interface *)
-
-val request_set_interface : request
-  (** Select an alternate interface for the specified interface *)
-
-val request_synch_frame : request
-  (** Set then report an endpoint's synchronization frame *)
+  string -> int -> int -> unit Lwt.t
 *)
+
+(** Standard requests *)
+module Request : sig
+  type t = request
+
+  val get_status : t
+    (** Request status of the specific recipient *)
+
+  val clear_feature : t
+    (** Clear or disable a specific feature *)
+
+  val set_feature : t
+    (** Set or enable a specific feature *)
+
+  val set_address : t
+    (** Set device address for all future accesses *)
+
+  val get_descriptor : t
+    (** Get the specified descriptor *)
+
+  val set_descriptor : t
+    (** Used to update existing descriptors or add new descriptors *)
+
+  val get_configuration : t
+    (** Get the current device configuration value *)
+
+  val set_configuration : t
+    (** Set device configuration *)
+
+  val get_interface : t
+    (** Return the selected alternate setting for the specified interface *)
+
+  val set_interface : t
+    (** Select an alternate interface for the specified interface *)
+
+  val synch_frame : t
+    (** Set then report an endpoint's synchronization frame *)
+end
