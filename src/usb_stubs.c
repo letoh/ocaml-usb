@@ -16,7 +16,6 @@
 #include <libusb.h>
 #include <poll.h>
 #include <string.h>
-#include <stdio.h>
 
 /* +--------+
    | Errors |

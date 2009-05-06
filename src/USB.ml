@@ -89,7 +89,7 @@ external ml_usb_interrupt_send : handle * endpoint * int * string * int * int * 
    +------------------------+ *)
 
 let filter_select now select set_r set_w set_e timeout =
-  let setr, set_w, timeout' = ml_usb_collect_sources set_r set_w in
+  let set_r, set_w, timeout' = ml_usb_collect_sources set_r set_w in
   let res = select set_r set_w set_e (Lwt_main.min_timeout timeout timeout') in
   ml_usb_handle_events ();
   res
