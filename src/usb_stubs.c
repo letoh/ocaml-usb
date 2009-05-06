@@ -381,10 +381,10 @@ void ml_usb_handle_recv(struct libusb_transfer *transfer)
   value meta = (value)(transfer->user_data);
 
   /* Location where to output received bytes: */
-  char *dest = String_val(Field(meta, 0)) + Long_val(Field(meta, 1));
+  char *dest = String_val(Field(meta, 1)) + Long_val(Field(meta, 2));
 
   /* The caml callback function: */
-  value caml_func = Field(meta, 2);
+  value caml_func = Field(meta, 0);
 
   /* Unregister the memory root: */
   caml_remove_generational_global_root((value*)(&(transfer->user_data)));
@@ -439,11 +439,12 @@ void ml_usb_handle_send(struct libusb_transfer *transfer)
 
 /* Alloc a transfer and fill it with common informations: */
 struct libusb_transfer *ml_usb_transfer(value desc /* the description provided by the caml function: */,
-                                        value meta /* metadata for the callback */)
+                                        value meta /* metadata for the callback */,
+                                        enum libusb_endpoint_direction direction)
 {
   struct libusb_transfer *transfer = ml_usb_alloc_transfer(0);
   transfer->dev_handle = Handle_val(Field(desc, 0));
-  transfer->endpoint = Int_val(Field(desc, 1)) | LIBUSB_ENDPOINT_IN;
+  transfer->endpoint = Int_val(Field(desc, 1)) | direction;
   transfer->timeout = Int_val(Field(desc, 2));
   transfer->buffer = ml_usb_alloc_buffer(Int_val(Field(desc, 5)));
   transfer->length = Int_val(Field(desc, 5));
@@ -470,7 +471,7 @@ CAMLprim value ml_usb_recv(value desc, enum libusb_transfer_type type)
   /* - the offset in the buffer: */
   Store_field(meta, 2, Field(desc, 4));
 
-  struct libusb_transfer *transfer = ml_usb_transfer(desc, meta);
+  struct libusb_transfer *transfer = ml_usb_transfer(desc, meta, LIBUSB_ENDPOINT_IN);
   transfer->callback = ml_usb_handle_recv;
   transfer->type = type;
 
@@ -485,7 +486,7 @@ CAMLprim value ml_usb_send(value desc, enum libusb_transfer_type type)
   CAMLparam1(desc);
 
   /* Metadata contains only the callback: */
-  struct libusb_transfer *transfer = ml_usb_transfer(desc, Field(desc, 6));
+  struct libusb_transfer *transfer = ml_usb_transfer(desc, Field(desc, 6), LIBUSB_ENDPOINT_OUT);
   transfer->callback = ml_usb_handle_send;
   transfer->type = type;
 
