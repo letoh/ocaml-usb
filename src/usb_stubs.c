@@ -286,6 +286,13 @@ value ml_usb_set_configuration(value handle, value config)
   return Val_unit;
 }
 
+value ml_usb_reset_device(value handle)
+{
+  int res = libusb_reset_device(Handle_val(handle));
+  if (res) ml_usb_error(res, "reset_device");
+  return Val_unit;
+}
+
 /* +-----------------------------------------------------------------+
    | Event-loop integration                                          |
    +-----------------------------------------------------------------+ */

@@ -133,15 +133,8 @@ val set_configuration : handle -> configuration -> unit Lwt.t
   (** [set_configuration handle conf] change the current configuration
       of a device *)
 
-val with_device : device -> interface -> ?configuration : configuration -> (handle -> 'a Lwt.t) -> 'a Lwt.t
-  (** [with_interface device interface ?configuration f] open
-      [device], maybe detach the kernel driver, claim [interface] and
-      pass the handle to [f]. When [f] returns, it release the
-      interface, maybe reattach the kernel driver and close the
-      device.
-
-      If [configuration] is defined, then it the device configuration
-      is set before claiming the interface. *)
+val reset_device : handle -> unit Lwt.t
+  (** [reset_device handle] reset the given device *)
 
 (** {6 IOs} *)
 

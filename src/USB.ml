@@ -90,6 +90,7 @@ external ml_usb_interrupt_recv : handle * endpoint * int * string * int * int * 
 external ml_usb_interrupt_send : handle * endpoint * int * string * int * int * (int result -> unit) -> unit = "ml_usb_interrupt_send"
 external ml_usb_control_recv : handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int * int -> unit = "ml_usb_control_recv"
 external ml_usb_control_send : handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int * int -> unit = "ml_usb_control_send"
+external ml_usb_reset_device : handle -> unit = "ml_usb_reset_device"
 
 (* +-----------------------------------------------------------------+
    | Event-loop integration                                          |
@@ -146,29 +147,13 @@ let detach_kernel_driver = ml_usb_detach_kernel_driver
 let attach_kernel_driver = ml_usb_attach_kernel_driver
 let get_configuration handle = try_lwt return (ml_usb_get_configuration handle)
 let set_configuration handle conf = try_lwt (ml_usb_set_configuration handle conf; return ())
+let reset_device handle = try_lwt (ml_usb_reset_device handle; return ())
 
 let open_device_with ~vendor_id ~product_id =
   Lazy.force init;
   match ml_usb_open_device_with_vid_pid vendor_id product_id with
     | Some handle -> handle
     | None -> failwith (Printf.sprintf "no such usb device (vendor-id=0x%04x, product-id=0x%04x)" vendor_id product_id)
-
-let with_device device interface ?configuration f =
-  let handle = open_device device in
-  let kernel_active = kernel_driver_active handle interface in
-  if kernel_active then detach_kernel_driver handle interface;
-  claim_interface handle interface;
-  try_lwt
-    match configuration with
-      | Some config ->
-          set_configuration handle config >> f handle
-      | None ->
-          f handle
-  finally
-    release_interface handle interface;
-    if kernel_active then attach_kernel_driver handle interface;
-    close handle;
-    return ()
 
 (* +-----------------------------------------------------------------+
    | IOs                                                             |
