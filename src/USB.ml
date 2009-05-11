@@ -144,8 +144,8 @@ let release_interface = ml_usb_release_interface
 let kernel_driver_active = ml_usb_kernel_driver_active
 let detach_kernel_driver = ml_usb_detach_kernel_driver
 let attach_kernel_driver = ml_usb_attach_kernel_driver
-let get_configuration handle = Lwt_preemptive.detach ml_usb_get_configuration handle
-let set_configuration handle conf = Lwt_preemptive.detach (fun _ -> ml_usb_set_configuration handle conf) ()
+let get_configuration handle = try_lwt return (ml_usb_get_configuration handle)
+let set_configuration handle conf = try_lwt (ml_usb_set_configuration handle conf; return ())
 
 let open_device_with ~vendor_id ~product_id =
   Lazy.force init;
