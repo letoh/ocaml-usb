@@ -9,9 +9,9 @@
 
 open Lwt_pervasives
 
-(* +--------+
-   | Errors |
-   +--------+ *)
+(* +-----------------------------------------------------------------+
+   | Errors                                                          |
+   +-----------------------------------------------------------------+ *)
 
 exception Access_denied
 exception No_device
@@ -33,9 +33,9 @@ let _ =
      "ocaml-usb:Stalled", Stalled;
      "ocaml-usb:Overflow", Overflow]
 
-(* +-------+
-   | Types |
-   +-------+ *)
+(* +-----------------------------------------------------------------+
+   | Types                                                           |
+   +-----------------------------------------------------------------+ *)
 
 type device
 type handle
@@ -53,10 +53,11 @@ type request_type =
   | Vendor
   | Reserved
 type request = int
+type configuration = int
 
-(* +----------------+
-   | Stub functions |
-   +----------------+ *)
+(* +-----------------------------------------------------------------+
+   | Stub functions                                                  |
+   +-----------------------------------------------------------------+ *)
 
 (* Result of a transfer: *)
 type 'a result =
@@ -76,6 +77,8 @@ external ml_usb_close : handle -> unit = "ml_usb_close"
 external ml_usb_get_device : handle -> device = "ml_usb_get_device"
 external ml_usb_claim_interface : handle -> interface -> unit = "ml_usb_claim_interface"
 external ml_usb_release_interface : handle -> interface -> unit = "ml_usb_release_interface"
+external ml_usb_get_configuration : handle -> configuration = "ml_usb_get_configuration"
+external ml_usb_set_configuration : handle -> configuration -> unit = "ml_usb_set_configuration"
 external ml_usb_kernel_driver_active : handle -> interface -> bool = "ml_usb_kernel_driver_active"
 external ml_usb_detach_kernel_driver : handle -> interface -> unit = "ml_usb_detach_kernel_driver"
 external ml_usb_attach_kernel_driver : handle -> interface -> unit = "ml_usb_attach_kernel_driver"
@@ -85,10 +88,12 @@ external ml_usb_bulk_recv : handle * endpoint * int * string * int * int * (int 
 external ml_usb_bulk_send : handle * endpoint * int * string * int * int * (int result -> unit) -> unit = "ml_usb_bulk_send"
 external ml_usb_interrupt_recv : handle * endpoint * int * string * int * int * (int result -> unit) -> unit = "ml_usb_interrupt_recv"
 external ml_usb_interrupt_send : handle * endpoint * int * string * int * int * (int result -> unit) -> unit = "ml_usb_interrupt_send"
+external ml_usb_control_recv : handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int * int -> unit = "ml_usb_control_recv"
+external ml_usb_control_send : handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int * int -> unit = "ml_usb_control_send"
 
-(* +------------------------+
-   | Event-loop integration |
-   +------------------------+ *)
+(* +-----------------------------------------------------------------+
+   | Event-loop integration                                          |
+   +-----------------------------------------------------------------+ *)
 
 let filter_select now select set_r set_w set_e timeout =
   let set_r, set_w, timeout' = ml_usb_collect_sources set_r set_w in
@@ -98,9 +103,9 @@ let filter_select now select set_r set_w set_e timeout =
 
 let hook = ref filter_select
 
-(* +----------------+
-   | Initialization |
-   +----------------+ *)
+(* +-----------------------------------------------------------------+
+   | Initialization                                                  |
+   +-----------------------------------------------------------------+ *)
 
 (* Every function of this module must take care of forcing this before
    doing anything: *)
@@ -120,9 +125,9 @@ let set_debug level =
                       | `warning -> 2
                       | `verbose -> 3)
 
-(* +---------------------------------+
-   | Device handling and enumeration |
-   +---------------------------------+ *)
+(* +-----------------------------------------------------------------+
+   | Device handling and enumeration                                 |
+   +-----------------------------------------------------------------+ *)
 
 let get_device_list () =
   Lazy.force init;
@@ -139,6 +144,8 @@ let release_interface = ml_usb_release_interface
 let kernel_driver_active = ml_usb_kernel_driver_active
 let detach_kernel_driver = ml_usb_detach_kernel_driver
 let attach_kernel_driver = ml_usb_attach_kernel_driver
+let get_configuration handle = Lwt_preemptive.detach ml_usb_get_configuration handle
+let set_configuration handle conf = Lwt_preemptive.detach (fun _ -> ml_usb_set_configuration handle conf) ()
 
 let open_device_with ~vendor_id ~product_id =
   Lazy.force init;
@@ -146,22 +153,26 @@ let open_device_with ~vendor_id ~product_id =
     | Some handle -> handle
     | None -> failwith (Printf.sprintf "no such usb device (vendor-id=0x%04x, product-id=0x%04x)" vendor_id product_id)
 
-let with_device device interface f =
+let with_device device interface ?configuration f =
   let handle = open_device device in
   let kernel_active = kernel_driver_active handle interface in
   if kernel_active then detach_kernel_driver handle interface;
   claim_interface handle interface;
   try_lwt
-    f handle
+    match configuration with
+      | Some config ->
+          set_configuration handle config >> f handle
+      | None ->
+          f handle
   finally
     release_interface handle interface;
     if kernel_active then attach_kernel_driver handle interface;
     close handle;
     return ()
 
-(* +-----+
-   | IOs |
-   +-----+ *)
+(* +-----------------------------------------------------------------+
+   | IOs                                                             |
+   +-----------------------------------------------------------------+ *)
 
 (* Handle the result of a transfer *)
 let handle_result w = function
@@ -183,9 +194,18 @@ let bulk_send = transfer "bulk_send" ml_usb_bulk_send
 let interrupt_recv = transfer "interrupt_recv" ml_usb_interrupt_recv
 let interrupt_send = transfer "interrupt_send" ml_usb_interrupt_send
 
-(* +------------------+
-   | Standard request |
-   +------------------+ *)
+let control_transfer name func ~handle ~endpoint ?timeout ~recipient ~request_type ~request ~value ~index ~length buffer offset length =
+  if offset < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
+  let w = Lwt.wait () in
+  func (handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result w, recipient, request_type, request, value, index, length);
+  w
+
+let control_recv = control_transfer "control_recv" ml_usb_control_recv
+let control_send = control_transfer "control_send" ml_usb_control_send
+
+(* +-----------------------------------------------------------------+
+   | Standard request                                                |
+   +-----------------------------------------------------------------+ *)
 
 module Request =
 struct

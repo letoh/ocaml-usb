@@ -122,11 +122,26 @@ val release_interface : handle -> interface -> unit
       will be sent to the device, resetting interface state to the
       first alternate setting. *)
 
-val with_device : device -> interface -> (handle -> 'a Lwt.t) -> 'a Lwt.t
-  (** [with_interface device interface f] open [device], maybe detach
-      the kernel driver, claim [interface] and pass the handle to
-      [f]. When [f] returns, it release the interface, maybe reattach
-      the kernel driver and close the device. *)
+type configuration = int
+    (** A device configuration *)
+
+val get_configuration : handle -> configuration Lwt.t
+  (** [get_configuration handle] returns the current configuration of
+      a device *)
+
+val set_configuration : handle -> configuration -> unit Lwt.t
+  (** [set_configuration handle conf] change the current configuration
+      of a device *)
+
+val with_device : device -> interface -> ?configuration : configuration -> (handle -> 'a Lwt.t) -> 'a Lwt.t
+  (** [with_interface device interface ?configuration f] open
+      [device], maybe detach the kernel driver, claim [interface] and
+      pass the handle to [f]. When [f] returns, it release the
+      interface, maybe reattach the kernel driver and close the
+      device.
+
+      If [configuration] is defined, then it the device configuration
+      is set before claiming the interface. *)
 
 (** {6 IOs} *)
 
@@ -196,27 +211,30 @@ type request_type =
   | Reserved
 
 type request = int
-(*
+
 val control_send :
   handle : handle ->
   endpoint : endpoint ->
+  ?timeout : float ->
   recipient : recipient ->
   request_type : request_type ->
   request : request ->
   value : int ->
   index : int ->
-  string -> int -> int -> unit Lwt.t
+  length : int ->
+  string -> int -> int -> int Lwt.t
 
 val control_recv :
   handle : handle ->
   endpoint : endpoint ->
+  ?timeout : float ->
   recipient : recipient ->
   request_type : request_type ->
   request : request ->
   value : int ->
   index : int ->
-  string -> int -> int -> unit Lwt.t
-*)
+  length : int ->
+  string -> int -> int -> int Lwt.t
 
 (** Standard requests *)
 module Request : sig

@@ -1,6 +1,7 @@
 # -*- conf -*-
 name = "usb"
 version = "@VERSION@"
+requires = "lwt lwt.preemptive"
 browse_interfaces = "USB"
 description = "Bindings for libusb-1.0"
 archive(byte) = "usb.cma"

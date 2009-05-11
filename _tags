@@ -5,7 +5,7 @@
 # +-------------------------+
 
 <src/*.ml>: syntax_camlp4o, pkg_lwt.syntax
-<src/*>: pkg_lwt
+<src/*>: pkg_lwt, pkg_lwt.preemptive
 <examples/*>: pkg_lwt
 
 # +---------+

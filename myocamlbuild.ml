@@ -21,9 +21,9 @@ open Ocamlbuild_plugin
 *)
 let intern_syntaxes = [ ]
 
-(* +-----------+
-   | Ocamlfind |
-   +-----------+ *)
+(* +-----------------------------------------------------------------+
+   | Ocamlfind                                                       |
+   +-----------------------------------------------------------------+ *)
 
 (* Packages we want to use in the program *)
 let packages = [
@@ -61,9 +61,9 @@ let syntaxes = [
   "camlp4r"
 ]
 
-(* +-------+
-   | Utils |
-   +-------+ *)
+(* +-----------------------------------------------------------------+
+   | Utils                                                           |
+   +-----------------------------------------------------------------+ *)
 
 (* Given the tag [tag] add the command line options [f] to all stages
    of compilatiopn but linking *)
@@ -118,9 +118,9 @@ let _ =
 
         define_lib ~dir:"src" "usb";
 
-        (* +-------------------+
-           | Internal syntaxes |
-           +-------------------+ *)
+        (* +---------------------------------------------------------+
+           | Internal syntaxes                                       |
+           +---------------------------------------------------------+ *)
 
         List.iter
           (fun (tag, file) ->
@@ -131,9 +131,9 @@ let _ =
              dep ["ocaml"; "ocamldep"; tag] [file])
           intern_syntaxes;
 
-        (* +-----------------+
-           | Ocamlfind stuff |
-           +-----------------+ *)
+        (* +---------------------------------------------------------+
+           | Ocamlfind stuff                                         |
+           +---------------------------------------------------------+ *)
 
         (* When one link an OCaml binary, one should use -linkpkg *)
         flag ["ocaml"; "link"; "program"] & A"-linkpkg";
@@ -151,9 +151,9 @@ let _ =
           (fun syntax -> flag_all_stages_except_link ("syntax_" ^ syntax) (S[A"-syntax"; A syntax]))
           syntaxes;
 
-        (* +---------+
-           | C stubs |
-           +---------+ *)
+        (* +---------------------------------------------------------+
+           | C stubs                                                 |
+           +---------------------------------------------------------+ *)
 
         (* Search 'pkg-config': *)
         let pkg_config = try
@@ -199,9 +199,9 @@ let _ =
         (* Otherwise the linker does not found the stubs: *)
         flag ["link"; "ocaml"; "use_usb"] & S[A"-cclib"; A"-L."];
 
-        (* +-------+
-           | Other |
-           +-------+ *)
+        (* +---------------------------------------------------------+
+           | Other                                                   |
+           +---------------------------------------------------------+ *)
 
         (* Generation of "META" *)
         rule "META" ~deps:["META.in"; "VERSION"] ~prod:"META"
