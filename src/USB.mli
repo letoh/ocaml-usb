@@ -59,9 +59,7 @@ val get_device_address : device -> int
 val get_max_packet_size : device : device -> direction : direction -> endpoint : endpoint -> int
   (** [get_max_packet_size ~device ~direction ~endpoint] Convenience
       function to retrieve the [wMaxPacketSize] value for a particular
-      endpoint in the active device configuration.
-
-      This is usually 64. *)
+      endpoint in the active device configuration. *)
 
 (** {6 Device use} *)
 
@@ -75,6 +73,9 @@ val open_device : device -> handle
   (** Open a device and obtain a device handle.
 
       A handle allows you to perform I/O on the device in question. *)
+
+val close : handle -> unit
+  (** Close a previously opened device handle *)
 
 val open_device_with : vendor_id : int -> product_id : int -> handle
   (** [open_device_with ~vendor_id ~product_id]
@@ -103,7 +104,7 @@ val attach_kernel_driver : handle -> interface -> unit
   (** Re-attach an interface's kernel driver, which was previously
       detached using {!detach_kernel_driver}. *)
 
-val claim_interface : handle -> int -> unit
+val claim_interface : handle -> interface -> unit
   (** [claim_interface handle interface_number]
 
       Claim an interface on a given device handle.
@@ -111,7 +112,7 @@ val claim_interface : handle -> int -> unit
       You must claim the interface you wish to use before you can
       perform I/O on any of its endpoints. *)
 
-val release_interface : handle -> int -> unit
+val release_interface : handle -> interface -> unit
   (** Release an interface previously claimed with libusb_claim_interface().
 
       You should release all claimed interfaces before closing a
@@ -120,6 +121,12 @@ val release_interface : handle -> int -> unit
       This is a blocking function. A [SET_INTERFACE] control request
       will be sent to the device, resetting interface state to the
       first alternate setting. *)
+
+val with_device : device -> interface -> (handle -> 'a Lwt.t) -> 'a Lwt.t
+  (** [with_interface device interface f] open [device], maybe detach
+      the kernel driver, claim [interface] and pass the handle to
+      [f]. When [f] returns, it release the interface, maybe reattach
+      the kernel driver and close the device. *)
 
 (** {6 IOs} *)
 

@@ -7,6 +7,8 @@
  * This file is a part of ocaml-usb.
  *)
 
+open Lwt_pervasives
+
 (* +--------+
    | Errors |
    +--------+ *)
@@ -143,6 +145,19 @@ let open_device_with ~vendor_id ~product_id =
   match ml_usb_open_device_with_vid_pid vendor_id product_id with
     | Some handle -> handle
     | None -> failwith (Printf.sprintf "no such usb device (vendor-id=0x%04x, product-id=0x%04x)" vendor_id product_id)
+
+let with_device device interface f =
+  let handle = open_device device in
+  let kernel_active = kernel_driver_active handle interface in
+  if kernel_active then detach_kernel_driver handle interface;
+  claim_interface handle interface;
+  try_lwt
+    f handle
+  finally
+    release_interface handle interface;
+    if kernel_active then attach_kernel_driver handle interface;
+    close handle;
+    return ()
 
 (* +-----+
    | IOs |
