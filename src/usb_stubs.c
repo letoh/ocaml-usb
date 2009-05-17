@@ -21,7 +21,7 @@
    | Errors                                                          |
    +-----------------------------------------------------------------+ */
 
-void ml_usb_error(int code, char *fun_name)
+static void ml_usb_error(int code, char *fun_name)
 {
 #define fail(name) caml_raise(*caml_named_value("ocaml-usb:" name));
   switch(code) {
@@ -53,14 +53,14 @@ void ml_usb_error(int code, char *fun_name)
 #undef fail
 }
 
-void *ml_usb_malloc(size_t size)
+static void *ml_usb_malloc(size_t size)
 {
   void *ptr = malloc(size);
   if (ptr == NULL) caml_failwith("ocaml-usb: out of memory");
   return ptr;
 }
 
-struct libusb_transfer *ml_usb_alloc_transfer(int count)
+static struct libusb_transfer *ml_usb_alloc_transfer(int count)
 {
   struct libusb_transfer *transfer = libusb_alloc_transfer(count);
   if (transfer == NULL) caml_failwith("ocaml-usb: out of memory");
@@ -95,19 +95,19 @@ void ml_usb_set_debug(value level)
 
 #define Ptr_val(v) ((long)(*(void**)Data_custom_val(v)))
 
-int ml_usb_compare(value v1, value v2)
+static int ml_usb_compare(value v1, value v2)
 {
   return (int)(Ptr_val(v1) - Ptr_val(v2));
 }
 
-long ml_usb_hash(value v)
+static long ml_usb_hash(value v)
 {
   return Ptr_val(v);
 }
 
 #define Device_val(v) *(libusb_device**)Data_custom_val(v)
 
-void ml_usb_device_finalize(value dev)
+static void ml_usb_device_finalize(value dev)
 {
   libusb_unref_device(Device_val(dev));
 }
@@ -123,28 +123,28 @@ static struct custom_operations device_ops = {
 
 #define Handle_val(v) *(libusb_device_handle**)Data_custom_val(v)
 
-void ml_usb_device_handle_funalize(value handle)
+static void ml_usb_device_handle_finalize(value handle)
 {
   libusb_close(Handle_val(handle));
 }
 
 static struct custom_operations handle_ops = {
   "usb.device.handle",
-  ml_usb_device_handle_funalize,
+  ml_usb_device_handle_finalize,
   ml_usb_compare,
   ml_usb_hash,
   custom_serialize_default,
   custom_deserialize_default
 };
 
-value alloc_device(libusb_device *device)
+static value alloc_device(libusb_device *device)
 {
   value x = caml_alloc_custom(&device_ops, sizeof(libusb_device*), 0, 1);
   Device_val(x) = device;
   return x;
 }
 
-value alloc_handle(libusb_device_handle *handle)
+static value alloc_handle(libusb_device_handle *handle)
 {
   value x = caml_alloc_custom(&handle_ops, sizeof(libusb_device_handle*), 0, 1);
   Handle_val(x) = handle;
@@ -154,6 +154,8 @@ value alloc_handle(libusb_device_handle *handle)
 CAMLprim value ml_usb_get_device_list(value unit)
 {
   CAMLparam1(unit);
+  CAMLlocal2(x, y);
+
   libusb_device **devices;
 
   size_t cnt = libusb_get_device_list(NULL, &devices);
@@ -162,9 +164,9 @@ CAMLprim value ml_usb_get_device_list(value unit)
 
   /* Convert the array to a caml list */
   size_t i;
-  value x = Val_int(0);
+  x = Val_int(0);
   for (i = 0; i < cnt; i++) {
-    value y = caml_alloc_tuple(2);
+    y = caml_alloc_tuple(2);
     Store_field(y, 0, alloc_device(devices[i]));
     Store_field(y, 1, x);
     x = y;
@@ -205,20 +207,20 @@ CAMLprim value ml_usb_open(value dev)
 CAMLprim value ml_usb_open_device_with_vid_pid(value vid, value pid)
 {
   CAMLparam2(vid, pid);
+  CAMLlocal1(some);
   libusb_device_handle *handle = libusb_open_device_with_vid_pid(NULL, Int_val(vid), Int_val(pid));
   if (handle == NULL)
     CAMLreturn(Val_int(0));
   else {
-    value some = caml_alloc_tuple(1);
+    some = caml_alloc_tuple(1);
     Store_field(some, 0, alloc_handle(handle));
     CAMLreturn(some);
   }
 }
 
-value ml_usb_close(value handle)
+void ml_usb_close(value handle)
 {
   libusb_close(Handle_val(handle));
-  return Val_unit;
 }
 
 CAMLprim value ml_usb_get_device(value handle)
@@ -229,18 +231,16 @@ CAMLprim value ml_usb_get_device(value handle)
   CAMLreturn(alloc_device(device));
 }
 
-value ml_usb_claim_interface(value handle, value interface)
+void ml_usb_claim_interface(value handle, value interface)
 {
   int res = libusb_claim_interface(Handle_val(handle), Int_val(interface));
   if (res) ml_usb_error(res, "claim_interface");
-  return Val_unit;
 }
 
-value ml_usb_release_interface(value handle, value interface)
+void ml_usb_release_interface(value handle, value interface)
 {
   int res = libusb_release_interface(Handle_val(handle), Int_val(interface));
   if (res) ml_usb_error(res, "release_interface");
-  return Val_unit;
 }
 
 value ml_usb_kernel_driver_active(value handle, value interface)
@@ -257,18 +257,16 @@ value ml_usb_kernel_driver_active(value handle, value interface)
   }
 }
 
-value ml_usb_detach_kernel_driver(value handle, value interface)
+void ml_usb_detach_kernel_driver(value handle, value interface)
 {
   int res = libusb_detach_kernel_driver(Handle_val(handle), Int_val(interface));
   if (res) ml_usb_error(res, "detach_kernel_driver");
-  return Val_unit;
 }
 
-value ml_usb_attach_kernel_driver(value handle, value interface)
+void ml_usb_attach_kernel_driver(value handle, value interface)
 {
   int res = libusb_attach_kernel_driver(Handle_val(handle), Int_val(interface));
   if (res) ml_usb_error(res, "attach_kernel_driver");
-  return Val_unit;
 }
 
 value ml_usb_get_configuration(value handle)
@@ -279,18 +277,16 @@ value ml_usb_get_configuration(value handle)
   return Val_int(config);
 }
 
-value ml_usb_set_configuration(value handle, value config)
+void ml_usb_set_configuration(value handle, value config)
 {
   int res = libusb_set_configuration(Handle_val(handle), Int_val(config));
   if (res) ml_usb_error(res, "set_configuration");
-  return Val_unit;
 }
 
-value ml_usb_reset_device(value handle)
+void ml_usb_reset_device(value handle)
 {
   int res = libusb_reset_device(Handle_val(handle));
   if (res) ml_usb_error(res, "reset_device");
-  return Val_unit;
 }
 
 /* +-----------------------------------------------------------------+
@@ -309,6 +305,7 @@ CAMLprim value ml_usb_collect_sources(value lr /* List of file-descriptors to mo
                                       value lw /* List of file-descriptors to monitor for writing */)
 {
   CAMLparam2(lr, lw);
+  CAMLlocal2(x, result);
 
   const struct libusb_pollfd **pollfds = libusb_get_pollfds(NULL);
 
@@ -319,13 +316,13 @@ CAMLprim value ml_usb_collect_sources(value lr /* List of file-descriptors to mo
       value fd = Val_int((*fds)->fd);
       short ev = (*fds)->events;
       if (ev & POLLIN) {
-        value x = caml_alloc_tuple(2);
+        x = caml_alloc_tuple(2);
         Store_field(x, 0, fd);
         Store_field(x, 1, lr);
         lr = x;
       }
       if (ev & POLLOUT) {
-        value x = caml_alloc_tuple(2);
+        x = caml_alloc_tuple(2);
         Store_field(x, 0, fd);
         Store_field(x, 1, lw);
         lw = x;
@@ -339,12 +336,12 @@ CAMLprim value ml_usb_collect_sources(value lr /* List of file-descriptors to mo
   int res = libusb_get_next_timeout(NULL, &tp);
   if (res == 1) {
     /* There is a timeout */
-    value some = caml_alloc_tuple(1) /* [Some timeout] */;
-    Store_field(some, 0, copy_double((double) tp.tv_sec + (double) tp.tv_usec / 1e6));
-    value result = caml_alloc_tuple(3);
+    x = caml_alloc_tuple(1) /* [Some timeout] */;
+    Store_field(x, 0, copy_double((double) tp.tv_sec + (double) tp.tv_usec / 1e6));
+    result = caml_alloc_tuple(3);
     Store_field(result, 0, lr);
     Store_field(result, 1, lw);
-    Store_field(result, 2, some);
+    Store_field(result, 2, x);
     CAMLreturn(result);
   }
 
@@ -352,7 +349,7 @@ CAMLprim value ml_usb_collect_sources(value lr /* List of file-descriptors to mo
   if (res != 0) ml_usb_error(res, "get_next_timeout");
 
   /* There is no timeout */
-  value result = caml_alloc_tuple(3);
+  result = caml_alloc_tuple(3);
   Store_field(result, 0, lr);
   Store_field(result, 1, lw);
   Store_field(result, 2, Val_int(0) /* [None] */);
@@ -365,7 +362,7 @@ CAMLprim value ml_usb_collect_sources(value lr /* List of file-descriptors to mo
 
 /* Allocate a buffer, taking cares of remarks about overflows from the
    libsub documentation: */
-unsigned char *ml_usb_alloc_buffer(int length)
+static unsigned char *ml_usb_alloc_buffer(int length)
 {
   int rest = length % 512;
   if (rest) length = length - rest + 512;
@@ -373,7 +370,7 @@ unsigned char *ml_usb_alloc_buffer(int length)
 }
 
 /* Convert an error transfer status to an exception */
-value ml_usb_transfer_error(enum libusb_transfer_status status)
+static value ml_usb_transfer_error(enum libusb_transfer_status status)
 {
   char *name;
   switch(status) {
@@ -397,24 +394,18 @@ value ml_usb_transfer_error(enum libusb_transfer_status status)
 }
 
 /* Handler for device-to-host transfers: */
-void ml_usb_handle_recv(struct libusb_transfer *transfer)
+static void ml_usb_handle_recv(struct libusb_transfer *transfer)
 {
-  /* Retreive metadata: */
-  value meta = (value)(transfer->user_data);
+  CAMLparam0();
+  CAMLlocal2(meta, result);
 
-  /* Location where to output received bytes: */
-  char *dest = String_val(Field(meta, 1)) + Long_val(Field(meta, 2));
+  /* Metadata of the transfer: */
+  meta = (value)(transfer->user_data);
 
-  /* The caml callback function: */
-  value caml_func = Field(meta, 0);
-
-  /* Unregister the memory root: */
-  caml_remove_generational_global_root((value*)(&(transfer->user_data)));
-
-  value result;
   if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
     /* Copy bytes from the C memory to the caml string: */
-    memcpy(dest, transfer->buffer, transfer->actual_length);
+    memcpy(String_val(Field(meta, 1)) + Long_val(Field(meta, 2)),
+           transfer->buffer, transfer->actual_length);
     /* Returns [OK actual_length] */
     result = caml_alloc(1, 0);
     Store_field(result, 0, Val_int(transfer->actual_length));
@@ -424,24 +415,27 @@ void ml_usb_handle_recv(struct libusb_transfer *transfer)
     Store_field(result, 0, ml_usb_transfer_error(transfer->status));
   }
 
+  /* Unregister the memory root: */
+  caml_remove_generational_global_root((value*)(&(transfer->user_data)));
+
   /* Cleanup allocated structures: */
   free(transfer->buffer);
   libusb_free_transfer(transfer);
 
   /* Call the ocaml handler: */
-  caml_callback(caml_func, result);
+  caml_callback(Field(meta, 0), result);
+  CAMLreturn0;
 }
 
 /* Handler for host-to-device transfers: */
 void ml_usb_handle_send(struct libusb_transfer *transfer)
 {
+  CAMLparam0();
+  CAMLlocal2(caml_func, result);
+
   /* Metadata contains only the caml callback: */
-  value caml_func = (value)(transfer->user_data);
+  caml_func = (value)(transfer->user_data);
 
-  /* Unregister the memory root: */
-  caml_remove_generational_global_root((value*)(&(transfer->user_data)));
-
-  value result;
   if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
     result = caml_alloc(1, 0);
     Store_field(result, 0, Val_int(transfer->actual_length));
@@ -451,12 +445,16 @@ void ml_usb_handle_send(struct libusb_transfer *transfer)
     Store_field(result, 0, ml_usb_transfer_error(transfer->status));
   }
 
+  /* Unregister the memory root: */
+  caml_remove_generational_global_root((value*)(&(transfer->user_data)));
+
   /* Cleanup allocated structures: */
   free(transfer->buffer);
   libusb_free_transfer(transfer);
 
   /* Call the ocaml handler: */
   caml_callback(caml_func, result);
+  CAMLreturn0;
 }
 
 /* Alloc a transfer and fill it with common informations: */
@@ -482,8 +480,11 @@ struct libusb_transfer *ml_usb_transfer(value desc /* the description provided b
 /* Device-to-host transfers, for interrupt or bulk transfers: */
 void ml_usb_recv(value desc, enum libusb_transfer_type type)
 {
+  CAMLparam1(desc);
+  CAMLlocal1(meta);
+
   /* Metadata for the transfer:  */
-  value meta = caml_alloc_tuple(3);
+  meta = caml_alloc_tuple(3);
   /* - the caml callback: */
   Store_field(meta, 0, Field(desc, 6));
   /* - the caml buffer: */
@@ -497,6 +498,7 @@ void ml_usb_recv(value desc, enum libusb_transfer_type type)
 
   int res = libusb_submit_transfer(transfer);
   if (res) ml_usb_error(res, "submit_transfer");
+  CAMLreturn0;
 }
 
 /* Host-to-device transfers, for interrupt or bulk transfers: */
@@ -514,32 +516,24 @@ void ml_usb_send(value desc, enum libusb_transfer_type type)
   if (res) ml_usb_error(res, "submit_transfer");
 }
 
-CAMLprim value ml_usb_bulk_recv(value desc)
+CAMLprim void ml_usb_bulk_recv(value desc)
 {
-  CAMLparam1(desc);
   ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_BULK);
-  CAMLreturn(Val_unit);
 }
 
-CAMLprim value ml_usb_bulk_send(value desc)
+CAMLprim void ml_usb_bulk_send(value desc)
 {
-  CAMLparam1(desc);
   ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_BULK);
-  CAMLreturn(Val_unit);
 }
 
-CAMLprim value ml_usb_interrupt_recv(value desc)
+CAMLprim void ml_usb_interrupt_recv(value desc)
 {
-  CAMLparam1(desc);
   ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_INTERRUPT);
-  CAMLreturn(Val_unit);
 }
 
-CAMLprim value ml_usb_interrupt_send(value desc)
+CAMLprim void ml_usb_interrupt_send(value desc)
 {
-  CAMLparam1(desc);
   ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_INTERRUPT);
-  CAMLreturn(Val_unit);
 }
 
 /* Generic function which filling the data section of a control transfer: */
@@ -557,16 +551,12 @@ void ml_usb_control(value desc, enum libusb_endpoint_direction direction)
     ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_CONTROL);
 }
 
-CAMLprim value ml_usb_control_recv(value desc)
+CAMLprim void ml_usb_control_recv(value desc)
 {
-  CAMLparam1(desc);
   ml_usb_control(desc, LIBUSB_ENDPOINT_IN);
-  CAMLreturn(Val_unit);
 }
 
-CAMLprim value ml_usb_control_send(value desc)
+CAMLprim void ml_usb_control_send(value desc)
 {
-  CAMLparam1(desc);
   ml_usb_control(desc, LIBUSB_ENDPOINT_OUT);
-  CAMLreturn(Val_unit);
 }
