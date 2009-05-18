@@ -7,7 +7,8 @@
  * This file is a part of ocaml-usb.
  *)
 
-open Lwt_pervasives
+open Lwt_unix
+open Lwt
 
 (* +-----------------------------------------------------------------+
    | Errors                                                          |
