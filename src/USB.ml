@@ -14,25 +14,34 @@ open Lwt
    | Errors                                                          |
    +-----------------------------------------------------------------+ *)
 
-exception Access_denied
-exception No_device
-exception Device_busy
-exception Not_supported
-exception Failed
-exception Timeout
-exception Stalled
-exception Overflow
+type error =
+  | Error_io
+  | Error_invalid_param
+  | Error_access
+  | Error_no_device
+  | Error_not_found
+  | Error_busy
+  | Error_timeout
+  | Error_overflow
+  | Error_pipe
+  | Error_interrupted
+  | Error_no_mem
+  | Error_not_supported
+  | Error_other
 
-let _ =
-  List.iter (fun (name, exn) -> Callback.register_exception name exn)
-    ["ocaml-usb:Access_denied", Access_denied;
-     "ocaml-usb:No_device", No_device;
-     "ocaml-usb:Device_busy", Device_busy;
-     "ocaml-usb:Not_supported", Not_supported;
-     "ocaml-usb:Failed", Failed;
-     "ocaml-usb:Timeout", Timeout;
-     "ocaml-usb:Stalled", Stalled;
-     "ocaml-usb:Overflow", Overflow]
+exception Error of error * string
+
+let _ = Callback.register_exception "ocaml-usb:Error" (Error(Error_access, ""))
+
+type transfer_error =
+  | Transfer_error
+  | Transfer_timed_out
+  | Transfer_cancelled
+  | Transfer_stall
+  | Transfer_no_device
+  | Transfer_overflow
+
+exception Transfer_error of transfer_error * string
 
 (* +-----------------------------------------------------------------+
    | Types                                                           |
@@ -63,7 +72,7 @@ type configuration = int
 (* Result of a transfer: *)
 type 'a result =
   | OK of int
-  | Error of exn
+  | Error of transfer_error * string
 
 external ml_usb_init : unit -> unit = "ml_usb_init"
 external ml_usb_exit : unit -> unit = "ml_usb_exit"
@@ -163,7 +172,7 @@ let open_device_with ~vendor_id ~product_id =
 (* Handle the result of a transfer *)
 let handle_result w = function
   | OK x -> Lwt.wakeup w x
-  | Error exn -> Lwt.wakeup_exn w exn
+  | Error(error, msg) -> Lwt.wakeup_exn w (Transfer_error(error, msg))
 
 let make_timeout = function
   | None -> 0

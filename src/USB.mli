@@ -11,17 +11,52 @@
 
 (** {6 General errors} *)
 
-exception Access_denied
-  (** Access denied to the peripheral *)
+(** Any function of this module may raise one of the following
+    errors: *)
+type error =
+  | Error_io
+      (** Error on IOs *)
 
-exception No_device
-  (** A device does not exists (it may have been disconnected) *)
+  | Error_invalid_param
+      (** Invalid parameter. If this error is raised, then there is a
+          bug in ocaml-usb. Please fill a bug report in this case. *)
 
-exception Device_busy
-  (** Resource busy *)
+  | Error_access
+      (** Access denied to a peripheral *)
 
-exception Not_supported
-  (** Operation not supported or unimplemented on this platform *)
+  | Error_no_device
+      (** No such device (it may have been disconnected) *)
+
+  | Error_not_found
+      (** Entity not found *)
+
+  | Error_busy
+      (** Resource busy *)
+
+  | Error_timeout
+      (** Operation timed out *)
+
+  | Error_overflow
+      (** Overflow *)
+
+  | Error_pipe
+      (** Pipe error *)
+
+  | Error_interrupted
+      (** System call interrupted (perhaps due to signal) *)
+
+  | Error_no_mem
+      (** Insufficient memory *)
+
+  | Error_not_supported
+      (** Operation not supported or unimplemented on this platform *)
+
+  | Error_other
+      (** Other error *)
+
+exception Error of error * string
+  (** [Error(error, msg)] is raised when libusb returns an
+      error. [msg] is a human readable description of the error. *)
 
 (** {6 Types} *)
 
@@ -140,18 +175,31 @@ val reset_device : handle -> unit Lwt.t
 
 (** {8 Errors} *)
 
-exception Failed
-  (** The transfer failed to complete for some reason. *)
+(** Transfers may fails with any of the following error: *)
+type transfer_error =
+  | Transfer_error
+      (** Transfer failed *)
 
-exception Timeout
-  (** The timeout of the transfer expired *)
+  | Transfer_timed_out
+      (** Transfer timed out *)
 
-exception Stalled
-  (** For buld/interrupt endpoints: halt condition detected *)
+  | Transfer_cancelled
+      (** Transfer was cancelled *)
 
-exception Overflow
-  (** Buffer overflow on transfers. This may happen with buggy
-      devices. *)
+  | Transfer_stall
+      (** For bulk/interrupt endpoints: halt condition detected
+          (endpoint stalled). For control endpoints: control request not
+          supported. *)
+
+  | Transfer_no_device
+      (** Device was disconnected *)
+
+  | Transfer_overflow
+      (** Device sent more data than requested *)
+
+exception Transfer_error of transfer_error * string
+  (** Exception raised when a transfer fail. The second argument is a
+      human description of the error. *)
 
 (** {8 Bulk transfers} *)
 
