@@ -5,8 +5,8 @@
 # +-------------------------+
 
 <src/*.ml>: syntax_camlp4o, pkg_lwt.syntax
-<src/*>: pkg_lwt
-<examples/*>: pkg_lwt
+<src/*>: pkg_lwt.preemptive, thread
+<examples/*>: pkg_lwt.preemptive
 
 # +---------+
 # | C stubs |

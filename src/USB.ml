@@ -150,14 +150,14 @@ let get_max_packet_size ~device ~direction ~endpoint = ml_usb_get_max_packet_siz
 let open_device = ml_usb_open
 let close = ml_usb_close
 let get_device = ml_usb_get_device
-let claim_interface = ml_usb_claim_interface
-let release_interface = ml_usb_release_interface
+let claim_interface handle interface = try_lwt (ml_usb_claim_interface handle interface; return ())
+let release_interface handle interface = Lwt_preemptive.detach (fun _ -> ml_usb_release_interface handle interface) ()
 let kernel_driver_active = ml_usb_kernel_driver_active
 let detach_kernel_driver = ml_usb_detach_kernel_driver
 let attach_kernel_driver = ml_usb_attach_kernel_driver
 let get_configuration handle = try_lwt return (ml_usb_get_configuration handle)
-let set_configuration handle conf = try_lwt (ml_usb_set_configuration handle conf; return ())
-let reset_device handle = try_lwt (ml_usb_reset_device handle; return ())
+let set_configuration handle conf = Lwt_preemptive.detach (fun _ -> ml_usb_set_configuration handle conf) ()
+let reset_device handle = Lwt_preemptive.detach (fun _ -> ml_usb_reset_device handle) ()
 
 let open_device_with ~vendor_id ~product_id =
   Lazy.force init;

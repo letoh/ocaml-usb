@@ -139,7 +139,7 @@ val attach_kernel_driver : handle -> interface -> unit
   (** Re-attach an interface's kernel driver, which was previously
       detached using {!detach_kernel_driver}. *)
 
-val claim_interface : handle -> interface -> unit
+val claim_interface : handle -> interface -> unit Lwt.t
   (** [claim_interface handle interface_number]
 
       Claim an interface on a given device handle.
@@ -147,7 +147,7 @@ val claim_interface : handle -> interface -> unit
       You must claim the interface you wish to use before you can
       perform I/O on any of its endpoints. *)
 
-val release_interface : handle -> interface -> unit
+val release_interface : handle -> interface -> unit Lwt.t
   (** Release an interface previously claimed with libusb_claim_interface().
 
       You should release all claimed interfaces before closing a

@@ -48,6 +48,7 @@ let packages = [
   (* Other packages we want to use *)
   "lwt";
   "lwt.syntax";
+  "lwt.preemptive";
   "str";
   "xml-light";
 ]
