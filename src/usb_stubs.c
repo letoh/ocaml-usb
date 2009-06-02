@@ -229,7 +229,7 @@ value ml_usb_get_device_address(value dev)
 value ml_usb_get_max_packet_size(value dev, value direction, value endpoint)
 {
   int res = libusb_get_max_packet_size(Device_val(dev), Endpoint_val(endpoint, direction));
-  if (res) ml_usb_error(res, "get_max_packet_size");
+  if (res < 0) ml_usb_error(res, "get_max_packet_size");
   return Val_int(res);
 }
 
