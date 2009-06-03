@@ -112,8 +112,6 @@ let filter_select now select set_r set_w set_e timeout =
   ml_usb_handle_events ();
   res
 
-let hook = ref filter_select
-
 (* +-----------------------------------------------------------------+
    | Initialization                                                  |
    +-----------------------------------------------------------------+ *)
@@ -122,8 +120,8 @@ let hook = ref filter_select
    doing anything: *)
 let init = lazy(
   ml_usb_init ();
-  Lwt_main.add_hook hook Lwt_main.select_filters;
-  let exit = lazy(Lwt_main.remove_hook hook Lwt_main.select_filters;
+  let hook = Lwt_sequence.add_l filter_select Lwt_main.select_filters in
+  let exit = lazy(Lwt_sequence.remove hook;
                   ml_usb_exit ()) in
   at_exit (fun _ -> Lazy.force exit)
 )
