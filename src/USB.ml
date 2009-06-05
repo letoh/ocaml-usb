@@ -98,8 +98,8 @@ external ml_usb_bulk_recv : handle * endpoint * int * string * int * int * (int 
 external ml_usb_bulk_send : handle * endpoint * int * string * int * int * (int result -> unit) -> unit = "ml_usb_bulk_send"
 external ml_usb_interrupt_recv : handle * endpoint * int * string * int * int * (int result -> unit) -> unit = "ml_usb_interrupt_recv"
 external ml_usb_interrupt_send : handle * endpoint * int * string * int * int * (int result -> unit) -> unit = "ml_usb_interrupt_send"
-external ml_usb_control_recv : handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int * int -> unit = "ml_usb_control_recv"
-external ml_usb_control_send : handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int * int -> unit = "ml_usb_control_send"
+external ml_usb_control_recv : handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int -> unit = "ml_usb_control_recv"
+external ml_usb_control_send : handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int -> unit = "ml_usb_control_send"
 external ml_usb_reset_device : handle -> unit = "ml_usb_reset_device"
 
 (* +-----------------------------------------------------------------+
@@ -187,10 +187,10 @@ let bulk_send = transfer "bulk_send" ml_usb_bulk_send
 let interrupt_recv = transfer "interrupt_recv" ml_usb_interrupt_recv
 let interrupt_send = transfer "interrupt_send" ml_usb_interrupt_send
 
-let control_transfer name func ~handle ~endpoint ?timeout ~recipient ~request_type ~request ~value ~index ~length buffer offset length =
+let control_transfer name func ~handle ~endpoint ?timeout ~recipient ~request_type ~request ~value ~index buffer offset length =
   if offset < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
   let w = Lwt.wait () in
-  func (handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result w, recipient, request_type, request, value, index, length);
+  func (handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result w, recipient, request_type, request, value, index);
   w
 
 let control_recv = control_transfer "control_recv" ml_usb_control_recv

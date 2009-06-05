@@ -262,7 +262,6 @@ val control_send :
   request : request ->
   value : int ->
   index : int ->
-  length : int ->
   string -> int -> int -> int Lwt.t
 
 val control_recv :
@@ -274,7 +273,6 @@ val control_recv :
   request : request ->
   value : int ->
   index : int ->
-  length : int ->
   string -> int -> int -> int Lwt.t
 
 (** Standard requests *)

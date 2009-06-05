@@ -601,7 +601,9 @@ void ml_usb_control(value desc, enum libusb_endpoint_direction direction)
   control->bRequest =  Int_val(Field(desc, 9));
   control->wValue =  libusb_cpu_to_le16(Int_val(Field(desc, 10)));
   control->wIndex =  libusb_cpu_to_le16(Int_val(Field(desc, 11)));
-  control->wLength = libusb_cpu_to_le16(Int_val(Field(desc, 12)));
+  int length = Int_val(Field(desc, 5));
+  control->wLength = libusb_cpu_to_le16(length);
+  Field(desc, 5) = Val_int(length + LIBUSB_CONTROL_SETUP_SIZE);
   if (direction == LIBUSB_ENDPOINT_IN)
     ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_CONTROL);
   else
