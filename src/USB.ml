@@ -178,9 +178,9 @@ let make_timeout = function
 
 let transfer name func ~handle ~endpoint ?timeout buffer offset length =
   if offset < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
-  let w = Lwt.wait () in
-  func (handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result w);
-  w
+  let waiter, wakener = Lwt.wait () in
+  func (handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result wakener);
+  waiter
 
 let bulk_recv = transfer "bulk_recv" ml_usb_bulk_recv
 let bulk_send = transfer "bulk_send" ml_usb_bulk_send
@@ -189,9 +189,9 @@ let interrupt_send = transfer "interrupt_send" ml_usb_interrupt_send
 
 let control_transfer name func ~handle ~endpoint ?timeout ~recipient ~request_type ~request ~value ~index buffer offset length =
   if offset < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
-  let w = Lwt.wait () in
-  func (handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result w, recipient, request_type, request, value, index);
-  w
+  let waiter, wakener = Lwt.wait () in
+  func (handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result wakener, recipient, request_type, request, value, index);
+  waiter
 
 let control_recv = control_transfer "control_recv" ml_usb_control_recv
 let control_send = control_transfer "control_send" ml_usb_control_send
