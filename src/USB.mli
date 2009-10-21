@@ -168,6 +168,10 @@ val set_configuration : handle -> configuration -> unit Lwt.t
   (** [set_configuration handle conf] change the current configuration
       of a device *)
 
+val clear_halt : handle -> endpoint -> unit Lwt.t
+  (** [clear_halt handle endpoint] clears the halt/stall condition for
+      an endpoint. *)
+
 val reset_device : handle -> unit Lwt.t
   (** [reset_device handle] reset the given device *)
 

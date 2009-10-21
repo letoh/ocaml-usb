@@ -321,6 +321,12 @@ void ml_usb_set_configuration(value handle, value config)
   if (res) ml_usb_error(res, "set_configuration");
 }
 
+void ml_usb_clear_halt(value handle, value endpoint)
+{
+  int res = libusb_clear_halt(Handle_val(handle), Int_val(endpoint));
+  if (res) ml_usb_error(res, "clear_halt");
+}
+
 void ml_usb_reset_device(value handle)
 {
   int res = libusb_reset_device(Handle_val(handle));
