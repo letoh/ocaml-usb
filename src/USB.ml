@@ -227,6 +227,58 @@ let open_device_with ~vendor_id ~product_id =
     | None -> failwith (Printf.sprintf "no such usb device (vendor-id=0x%04x, product-id=0x%04x)" vendor_id product_id)
 
 (* +-----------------------------------------------------------------+
+   | USB descriptors                                                 |
+   +-----------------------------------------------------------------+ *)
+
+module Class =
+struct
+  type t = int
+
+  let per_interface = 0
+  let audio = 1
+  let communication = 2
+  let hid = 3
+  let printer = 7
+  let ptp = 6
+  let mass_storage = 8
+  let hub = 9
+  let data = 10
+  let vendor_specific = 0xff
+
+  let to_string n =
+    try
+      List.assoc n [(per_interface, "per interface");
+                    (audio, "audio");
+                    (communication, "communication");
+                    (hid, "HID");
+                    (printer, "printer");
+                    (ptp, "PTP");
+                    (mass_storage, "mass storage");
+                    (hub, "HUB");
+                    (data, "data ");
+                    (vendor_specific, "vendor specific")]
+    with Not_found ->
+      Printf.sprintf "0x%x02x" n
+end
+
+type descriptor = {
+  usb : int;
+  device_class : Class.t;
+  device_sub_class : int;
+  device_protocol : int;
+  max_packet_size : int;
+  vendor_id : int;
+  product_id : int;
+  device : int;
+  index_manufacturer : int;
+  index_product : int;
+  index_serial_number : int;
+  configurations : int;
+}
+
+external get_device_descriptor : device -> descriptor = "ml_usb_get_device_descriptor"
+
+(* +-----------------------------------------------------------------+
    | IOs                                                             |
    +-----------------------------------------------------------------+ *)
 

@@ -340,6 +340,36 @@ void ml_usb_reset_device(value handle)
 }
 
 /* +-----------------------------------------------------------------+
+   | USB descriptors                                                 |
+   +-----------------------------------------------------------------+ */
+
+CAMLprim value ml_usb_get_device_descriptor(value device)
+{
+  CAMLparam1(device);
+  CAMLlocal1(result);
+
+  struct libusb_device_descriptor desc;
+  int res = libusb_get_device_descriptor(Device_val(device), &desc);
+  if (res) ml_usb_error(res, "get_device_descriptor");
+
+  result = caml_alloc_tuple(12);
+  Store_field(result, 0, Val_int(desc.bcdUSB));
+  Store_field(result, 1, Val_int(desc.bDeviceClass));
+  Store_field(result, 2, Val_int(desc.bDeviceSubClass));
+  Store_field(result, 3, Val_int(desc.bDeviceProtocol));
+  Store_field(result, 4, Val_int(desc.bMaxPacketSize0));
+  Store_field(result, 5, Val_int(desc.idVendor));
+  Store_field(result, 6, Val_int(desc.idProduct));
+  Store_field(result, 7, Val_int(desc.bcdDevice));
+  Store_field(result, 8, Val_int(desc.iManufacturer));
+  Store_field(result, 9, Val_int(desc.iProduct));
+  Store_field(result, 10, Val_int(desc.iSerialNumber));
+  Store_field(result, 11, Val_int(desc.bNumConfigurations));
+
+  CAMLreturn(result);
+}
+
+/* +-----------------------------------------------------------------+
    | Event-loop integration                                          |
    +-----------------------------------------------------------------+ */
 

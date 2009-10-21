@@ -179,6 +179,73 @@ val clear_halt : handle -> endpoint -> unit Lwt.t
 val reset_device : handle -> unit Lwt.t
   (** [reset_device handle] reset the given device *)
 
+(** {6 USB descriptors} *)
+
+(** Device class codes *)
+module Class : sig
+  type t = int
+
+  val per_interface : t
+  val audio : t
+  val communication : t
+  val hid : t
+  val printer : t
+  val ptp : t
+  val mass_storage : t
+  val hub : t
+  val data : t
+  val vendor_specific : t
+
+  val to_string : t -> string
+    (** Returns a string representation of a device class code *)
+end
+
+type descriptor = {
+  usb : int;
+  (** USB specification release number in binary-coded decimal.
+
+      A value of 0x0200 indicates USB 2.0, 0x0110 indicates USB 1.1,
+      etc. *)
+
+  device_class : Class.t;
+  (** USB-IF class code for the device. *)
+
+  device_sub_class : int;
+  (** USB-IF subclass code for the device, qualified by the
+      [device_class] value. *)
+
+  device_protocol : int;
+  (** USB-IF protocol code for the device, qualified by the
+      [device_class] and [device_subclass] values. *)
+
+  max_packet_size : int;
+  (** Maximum packet size for endpoint 0. *)
+
+  vendor_id : int;
+  (** USB-IF vendor ID. *)
+
+  product_id : int;
+  (** USB-IF product ID. *)
+
+  device : int;
+  (** Device release number in binary-coded decimal. *)
+
+  index_manufacturer : int;
+  (** Index of string descriptor describing manufacturer. *)
+
+  index_product : int;
+  (** Index of string descriptor describing product. *)
+
+  index_serial_number : int;
+  (** Index of string descriptor containing device serial number. *)
+
+  configurations : int;
+  (** Number of possible configurations. *)
+}
+
+val get_device_descriptor : device -> descriptor
+  (** Get the USB device descriptor for a given device. *)
+
 (** {6 IOs} *)
 
 (** {8 Errors} *)
