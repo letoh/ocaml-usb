@@ -321,6 +321,12 @@ void ml_usb_set_configuration(value handle, value config)
   if (res) ml_usb_error(res, "set_configuration");
 }
 
+void ml_usb_set_interface_alt_setting(value handle, value interface, value alt_setting)
+{
+  int res = libusb_set_interface_alt_setting(Handle_val(handle), Int_val(interface), Int_val(alt_setting));
+  if (res) ml_usb_error(res, "set_interface_alt_setting");
+}
+
 void ml_usb_clear_halt(value handle, value endpoint)
 {
   int res = libusb_clear_halt(Handle_val(handle), Int_val(endpoint));

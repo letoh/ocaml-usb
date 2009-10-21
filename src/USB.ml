@@ -116,6 +116,7 @@ external ml_usb_control_recv : device_handle * endpoint * int * string * int * i
 external ml_usb_control_send : device_handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int -> transfer = "ml_usb_control_send"
 external ml_usb_reset_device : device_handle -> unit = "ml_usb_reset_device"
 external ml_usb_cancel_transfer : transfer -> unit = "ml_usb_cancel_transfer"
+external ml_usb_set_interface_alt_setting : device_handle -> interface -> int -> unit = "ml_usb_set_interface_alt_setting"
 external ml_usb_clear_halt : device_handle -> endpoint -> unit = "ml_usb_clear_halt"
 
 (* +-----------------------------------------------------------------+
@@ -212,6 +213,8 @@ let get_configuration handle =
     return (ml_usb_get_configuration handle.handle)
 let set_configuration handle conf =
   detach handle (fun () -> ml_usb_set_configuration handle.handle conf)
+let set_interface_alt_setting handle interface alt_setting =
+  detach handle (fun () -> ml_usb_set_interface_alt_setting handle.handle interface alt_setting)
 let clear_halt handle endpoint =
   detach handle (fun () -> ml_usb_clear_halt handle.handle endpoint)
 let reset_device handle =
