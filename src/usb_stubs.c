@@ -369,6 +369,73 @@ CAMLprim value ml_usb_get_device_descriptor(value device)
   CAMLreturn(result);
 }
 
+static value copy_config_descriptor(struct libusb_config_descriptor *cd)
+{
+  CAMLparam0();
+  CAMLlocal5(result, iface, ifaces, altsettings, endpoint);
+  CAMLlocal1(endpoints);
+  result = caml_alloc_tuple(5);
+  Store_field(result, 0, Val_int(cd->bConfigurationValue));
+  Store_field(result, 1, Val_int(cd->iConfiguration));
+  Store_field(result, 2, Val_int(cd->bmAttributes));
+  Store_field(result, 3, Val_int(cd->MaxPower));
+  ifaces = caml_alloc_tuple(cd->bNumInterfaces);
+  Store_field(result, 4, ifaces);
+  int i, j, k;
+  for (i = 0; i < cd->bNumInterfaces; i++) {
+    altsettings = caml_alloc_tuple(cd->interface[i].num_altsetting);
+    Store_field(ifaces, i, altsettings);
+    for (j = 0; j < cd->interface[i].num_altsetting; j++) {
+      iface = caml_alloc_tuple(7);
+      Store_field(altsettings, j, iface);
+      Store_field(iface, 0, Val_int(cd->interface[i].altsetting[j].bInterfaceNumber));
+      Store_field(iface, 1, Val_int(cd->interface[i].altsetting[j].bAlternateSetting));
+      Store_field(iface, 2, Val_int(cd->interface[i].altsetting[j].bInterfaceClass));
+      Store_field(iface, 3, Val_int(cd->interface[i].altsetting[j].bInterfaceSubClass));
+      Store_field(iface, 4, Val_int(cd->interface[i].altsetting[j].bInterfaceProtocol));
+      Store_field(iface, 5, Val_int(cd->interface[i].altsetting[j].iInterface));
+      endpoints = caml_alloc_tuple(cd->interface[i].altsetting[j].bNumEndpoints);
+      Store_field(iface, 6, endpoints);
+      for (k = 0; k < cd->interface[i].altsetting[j].bNumEndpoints; k++) {
+        endpoint = caml_alloc_tuple(6);
+        Store_field(endpoints, k, endpoint);
+        Store_field(endpoint, 0, Val_int(cd->interface[i].altsetting[j].endpoint[k].bEndpointAddress));
+        Store_field(endpoint, 1, Val_int(cd->interface[i].altsetting[j].endpoint[k].bmAttributes));
+        Store_field(endpoint, 2, Val_int(cd->interface[i].altsetting[j].endpoint[k].wMaxPacketSize));
+        Store_field(endpoint, 3, Val_int(cd->interface[i].altsetting[j].endpoint[k].bInterval));
+        Store_field(endpoint, 4, Val_int(cd->interface[i].altsetting[j].endpoint[k].bRefresh));
+        Store_field(endpoint, 5, Val_int(cd->interface[i].altsetting[j].endpoint[k].bSynchAddress));
+      }
+    }
+  }
+  libusb_free_config_descriptor(cd);
+  CAMLreturn(result);
+}
+
+CAMLprim value ml_usb_get_active_config_descriptor(value device)
+{
+  struct libusb_config_descriptor *cd;
+  int res = libusb_get_active_config_descriptor(Device_val(device), &cd);
+  if (res) ml_usb_error(res, "get_active_config_descriptor");
+  return copy_config_descriptor(cd);
+}
+
+CAMLprim value ml_usb_get_config_descriptor(value device, value index)
+{
+  struct libusb_config_descriptor *cd;
+  int res = libusb_get_config_descriptor(Device_val(device), Int_val(index), &cd);
+  if (res) ml_usb_error(res, "get_config_descriptor");
+  return copy_config_descriptor(cd);
+}
+
+CAMLprim value ml_usb_get_config_descriptor_by_value(value device, value val)
+{
+  struct libusb_config_descriptor *cd;
+  int res = libusb_get_config_descriptor_by_value(Device_val(device), Int_val(val), &cd);
+  if (res) ml_usb_error(res, "get_config_descriptor_by_value");
+  return copy_config_descriptor(cd);
+}
+
 /* +-----------------------------------------------------------------+
    | Event-loop integration                                          |
    +-----------------------------------------------------------------+ */

@@ -261,22 +261,49 @@ struct
       Printf.sprintf "0x%x02x" n
 end
 
-type descriptor = {
-  usb : int;
-  device_class : Class.t;
-  device_sub_class : int;
-  device_protocol : int;
-  max_packet_size : int;
-  vendor_id : int;
-  product_id : int;
-  device : int;
-  index_manufacturer : int;
-  index_product : int;
-  index_serial_number : int;
-  configurations : int;
+type device_descriptor = {
+  dd_usb : int;
+  dd_device_class : Class.t;
+  dd_device_sub_class : int;
+  dd_device_protocol : int;
+  dd_max_packet_size : int;
+  dd_vendor_id : int;
+  dd_product_id : int;
+  dd_device : int;
+  dd_index_manufacturer : int;
+  dd_index_product : int;
+  dd_index_serial_number : int;
+  dd_configurations : int;
+}
+type endpoint_descriptor = {
+  ed_endpoint_address : int;
+  ed_attributes : int;
+  ed_max_packet_size : int;
+  ed_interval : int;
+  ed_refresh : int;
+  ed_synch_address : int;
+}
+type interface_descriptor = {
+  id_interface : int;
+  id_alternate_setting : int;
+  id_interface_class : Class.t;
+  id_interface_sub_class : int;
+  id_interface_protocol : int;
+  id_index_interface : int;
+  id_endpoints : endpoint_descriptor array;
+}
+type config_descriptor = {
+  cd_configuration_value : int;
+  cd_index_configuration : int;
+  cd_attributes : int;
+  cd_max_power : int;
+  cd_interfaces : interface_descriptor array array;
 }
 
-external get_device_descriptor : device -> descriptor = "ml_usb_get_device_descriptor"
+external get_device_descriptor : device -> device_descriptor = "ml_usb_get_device_descriptor"
+external get_active_config_descriptor : device -> config_descriptor = "ml_usb_get_active_config_descriptor"
+external get_config_descriptor : device -> int -> config_descriptor = "ml_usb_get_config_descriptor"
+external get_config_descriptor_by_value : device -> int -> config_descriptor = "ml_usb_get_config_descriptor_by_value"
 
 (* +-----------------------------------------------------------------+
    | IOs                                                             |

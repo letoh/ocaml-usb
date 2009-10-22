@@ -200,51 +200,135 @@ module Class : sig
     (** Returns a string representation of a device class code *)
 end
 
-type descriptor = {
-  usb : int;
+type device_descriptor = {
+  dd_usb : int;
   (** USB specification release number in binary-coded decimal.
 
       A value of 0x0200 indicates USB 2.0, 0x0110 indicates USB 1.1,
       etc. *)
 
-  device_class : Class.t;
+  dd_device_class : Class.t;
   (** USB-IF class code for the device. *)
 
-  device_sub_class : int;
+  dd_device_sub_class : int;
   (** USB-IF subclass code for the device, qualified by the
-      [device_class] value. *)
+      [dd_device_class] value. *)
 
-  device_protocol : int;
+  dd_device_protocol : int;
   (** USB-IF protocol code for the device, qualified by the
-      [device_class] and [device_subclass] values. *)
+      [dd_device_class] and [dd_device_subclass] values. *)
 
-  max_packet_size : int;
+  dd_max_packet_size : int;
   (** Maximum packet size for endpoint 0. *)
 
-  vendor_id : int;
+  dd_vendor_id : int;
   (** USB-IF vendor ID. *)
 
-  product_id : int;
+  dd_product_id : int;
   (** USB-IF product ID. *)
 
-  device : int;
+  dd_device : int;
   (** Device release number in binary-coded decimal. *)
 
-  index_manufacturer : int;
+  dd_index_manufacturer : int;
   (** Index of string descriptor describing manufacturer. *)
 
-  index_product : int;
+  dd_index_product : int;
   (** Index of string descriptor describing product. *)
 
-  index_serial_number : int;
+  dd_index_serial_number : int;
   (** Index of string descriptor containing device serial number. *)
 
-  configurations : int;
+  dd_configurations : int;
   (** Number of possible configurations. *)
 }
 
-val get_device_descriptor : device -> descriptor
+val get_device_descriptor : device -> device_descriptor
   (** Get the USB device descriptor for a given device. *)
+
+type endpoint_descriptor = {
+  ed_endpoint_address : int;
+  (** The address of the endpoint described by this descriptor. *)
+
+  ed_attributes : int;
+  (** Attributes which apply to the endpoint when it is configured
+      using the bConfigurationValue. *)
+
+  ed_max_packet_size : int;
+  (** Maximum packet size this endpoint is capable of
+      sending/receiving. *)
+
+  ed_interval : int;
+  (** Interval for polling endpoint for data transfers. *)
+
+  ed_refresh : int;
+  (** For audio devices only: the rate at which synchronization
+      feedback is provided. *)
+
+  ed_synch_address : int;
+  (** For audio devices only: the address if the synch endpoint. *)
+}
+
+type interface_descriptor = {
+  id_interface : int;
+  (** Number of this interface. *)
+
+  id_alternate_setting : int;
+  (** Value used to select this alternate setting for this
+      interface. *)
+
+  id_interface_class : Class.t;
+  (** USB-IF class code for this interface. *)
+
+  id_interface_sub_class : int;
+  (** USB-IF subclass code for this interface, qualified by the
+      [id_interface_class] value. *)
+
+  id_interface_protocol : int;
+  (** USB-IF protocol code for this interface, qualified by the
+      [id_interface_class] and [id_interface_sub_class] values. *)
+
+  id_index_interface : int;
+  (** Index of string descriptor describing this interface. *)
+
+  id_endpoints : endpoint_descriptor array;
+  (** Array of endpoint descriptors. *)
+}
+
+type config_descriptor = {
+  cd_configuration_value : int;
+  (** Identifier value for this configuration *)
+
+  cd_index_configuration : int;
+  (** Index of string descriptor describing this configuration. *)
+
+  cd_attributes : int;
+  (** A bitmask, representing configuration characteristics. *)
+
+  cd_max_power : int;
+  (** Maximum power consumption of the USB device from this bus in
+      this configuration when the device is fully opreation.
+
+      Expressed in units of 2 mA. *)
+
+  cd_interfaces : interface_descriptor array array;
+  (** Array of interfaces supported by this configuration.
+
+      [cd_interface.(iface).(altsetting)] designate the interface
+      descriptor for interface [iface] with alternate setting
+      [altsetting]. *)
+}
+
+val get_active_config_descriptor : device -> config_descriptor
+  (** Get the USB configuration descriptor for the currently active
+      configuration. *)
+
+val get_config_descriptor : device -> int -> config_descriptor
+  (** Get a USB configuration descriptor based on its index. *)
+
+val get_config_descriptor_by_value : device -> int -> config_descriptor
+  (** Get a USB configuration descriptor with a specific
+      [cd_configuration_value]. *)
 
 (** {6 IOs} *)
 
