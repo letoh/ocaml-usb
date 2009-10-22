@@ -305,6 +305,20 @@ external get_active_config_descriptor : device -> config_descriptor = "ml_usb_ge
 external get_config_descriptor : device -> int -> config_descriptor = "ml_usb_get_config_descriptor"
 external get_config_descriptor_by_value : device -> int -> config_descriptor = "ml_usb_get_config_descriptor_by_value"
 
+module DT =
+struct
+  type t = int
+  let device = 0x01
+  let config = 0x02
+  let string = 0x03
+  let interface = 0x04
+  let endpoint = 0x05
+  let hid = 0x21
+  let report = 0x22
+  let physical = 0x23
+  let hub = 0x2
+end
+
 (* +-----------------------------------------------------------------+
    | IOs                                                             |
    +-----------------------------------------------------------------+ *)
@@ -361,3 +375,45 @@ struct
   let set_interface = 0x0b
   let synch_frame = 0x0c
 end
+
+(* +-----------------------------------------------------------------+
+   | Helpers                                                         |
+   +-----------------------------------------------------------------+ *)
+
+let get_string_descriptor handle ?timeout ?lang_id ~index =
+  let data = String.create 255 in
+  lwt lang_id = match lang_id with
+    | Some lang_id ->
+        return lang_id
+    | None ->
+        (* Guess the default language id *)
+        lwt n = control_recv
+          ~handle
+          ~endpoint:0
+          ?timeout
+          ~request_type:Standard
+          ~request:Request.get_descriptor
+          ~recipient:Device
+          ~value:(DT.string lsl 8)
+          ~index:0
+          data 0 (String.length data) in
+        if n < 4 then
+          fail (Failure "USB.get_string_descriptor: cannot retreive default lang id")
+        else
+          return (Char.code data.[2] lor (Char.code data.[3] lsl 8))
+  in
+  lwt n = control_recv
+    ~handle
+    ~endpoint:0
+    ?timeout
+    ~request_type:Standard
+    ~request:Request.get_descriptor
+    ~recipient:Device
+    ~value:(DT.string lsl 8 lor index)
+    ~index:lang_id
+    data 0 (String.length data) in
+  let len = Char.code data.[0] in
+  if Char.code data.[1] <> DT.string || len > n then
+    fail (Failure "USB.get_string_descriptor: invalid control packet")
+  else
+    return (String.sub data 2 (len - 2))
