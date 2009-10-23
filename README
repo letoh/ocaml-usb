@@ -1,0 +1,35 @@
+                              OCaml-USB
+
+                 Jeremie Dimino <jeremie@dimino.org>
+                             October 2009
+
+url: https://forge.ocamlcore.org/projects/ocaml-usb/
+
+* What it is ?
+
+OCaml-USB is a binding to libusb-1.0. It uses Lwt to make it easy to
+use asynchronous IO features of libusb-1.0.
+
+* Requirement
+
+OCaml-USB needs ocaml >= 3.11, lwt >= 2.0.0 and libusb-1.0.
+
+* Building and installation
+
+To build and install it just type:
+
+  $ make all
+  $ make install
+
+This will install the "usb" package (ocamlfind is required).
+
+* Development
+
+The last development version of ocaml-usb can always be found in the
+darcs repository hosted at darcs.ocamlcore.org:
+
+  $ darcs get http://darcs.ocamlcore.org/repos/ocaml-usb/ocaml-usb
+
+local variables:
+mode: outline
+end:
