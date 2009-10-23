@@ -433,23 +433,31 @@ val control_send :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  recipient : recipient ->
-  request_type : request_type ->
+  ?recipient : recipient ->
+  ?request_type : request_type ->
   request : request ->
   value : int ->
   index : int ->
   string -> int -> int -> int Lwt.t
+  (** Sends a control packet.
+
+      @param recipient defaults to {!Device}
+      @param request_type defaults to {!Standard} *)
 
 val control_recv :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  recipient : recipient ->
-  request_type : request_type ->
+  ?recipient : recipient ->
+  ?request_type : request_type ->
   request : request ->
   value : int ->
   index : int ->
   string -> int -> int -> int Lwt.t
+  (** Receives a control packet.
+
+      @param recipient defaults to {!Device}
+      @param request_type defaults to {!Standard} *)
 
 (** Standard requests *)
 module Request : sig

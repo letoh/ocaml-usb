@@ -345,7 +345,7 @@ let bulk_send = transfer "bulk_send" ml_usb_bulk_send
 let interrupt_recv = transfer "interrupt_recv" ml_usb_interrupt_recv
 let interrupt_send = transfer "interrupt_send" ml_usb_interrupt_send
 
-let control_transfer name func ~handle ~endpoint ?timeout ~recipient ~request_type ~request ~value ~index buffer offset length =
+let control_transfer name func ~handle ~endpoint ?timeout ?(recipient=Device) ?(request_type=Standard) ~request ~value ~index buffer offset length =
   check_handle handle;
   if offset < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
   let waiter, wakener = Lwt.wait () in
@@ -391,9 +391,7 @@ let get_string_descriptor handle ?timeout ?lang_id ~index =
           ~handle
           ~endpoint:0
           ?timeout
-          ~request_type:Standard
           ~request:Request.get_descriptor
-          ~recipient:Device
           ~value:(DT.string lsl 8)
           ~index:0
           data 0 (String.length data) in
@@ -406,9 +404,7 @@ let get_string_descriptor handle ?timeout ?lang_id ~index =
     ~handle
     ~endpoint:0
     ?timeout
-    ~request_type:Standard
     ~request:Request.get_descriptor
-    ~recipient:Device
     ~value:(DT.string lsl 8 lor index)
     ~index:lang_id
     data 0 (String.length data) in
