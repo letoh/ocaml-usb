@@ -9,6 +9,11 @@
 
 (** Module for USB communication *)
 
+val handle_error : ('a -> 'b) -> 'a -> 'b
+  (** [handle_unix_error f x] applies [f] to [x] and returns the
+      result.  If the exception {!Error} or {!Transport} is raised, it
+      prints a message describing the error and exits with code 2. *)
+
 (** {6 General errors} *)
 
 (** Any function of this module may raise one of the following
@@ -55,8 +60,13 @@ type error =
       (** Other error *)
 
 exception Error of error * string
-  (** [Error(error, msg)] is raised when libusb returns an
-      error. [msg] is a human readable description of the error. *)
+  (** [Error(error, func_name)] is raised when libusb returns an
+      error. [func_name] is a the name of the function which
+      failed. *)
+
+val error_message : error -> string
+  (** [error_message error] returns a human readable description of
+      the error *)
 
 (** {6 Types} *)
 
@@ -373,9 +383,12 @@ type transfer_error =
   | Transfer_overflow
       (** Device sent more data than requested *)
 
-exception Transfer_error of transfer_error * string
-  (** Exception raised when a transfer fail. The second argument is a
-      human description of the error. *)
+exception Transfer of transfer_error * string
+  (** [Transfer(error, func_name)] Exception raised when a transfer
+      fail. *)
+
+val transfer_error_message : transfer_error -> string
+  (** [transfer_error_message error] *)
 
 (** {8 Bulk transfers} *)
 
@@ -411,8 +424,22 @@ val interrupt_send :
 
 (** {8 Isochronous transfers} *)
 
-(** TODO *)
+(*type iso_result =
+  | Iso_ok of 'a
+  | Iso_error of transfer_error * string
 
+val iso_recv :
+  handle : handle ->
+  endpoint : endpoint ->
+  ?timeout : float ->
+  string -> int -> int list -> int result list Lwt.t
+
+val iso_send :
+  handle : handle ->
+  endpoint : endpoint ->
+  ?timeout : float ->
+  string -> int -> int list -> int result list Lwt.t
+*)
 (** {8 Control transfers} *)
 
 type recipient =

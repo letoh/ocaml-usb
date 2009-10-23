@@ -25,69 +25,55 @@
 static void ml_usb_error(int code, char *fun_name)
 {
   int num;
-  char *msg;
-  char desc[512];
   value arg[2];
   switch(code) {
   case LIBUSB_ERROR_IO:
     num = Val_int(0);
-    msg = "Input/output error";
     break;
   case LIBUSB_ERROR_INVALID_PARAM:
     num = Val_int(1);
-    msg = "Invalid parameter";
     break;
   case LIBUSB_ERROR_ACCESS:
     num = Val_int(2);
-    msg = "Access denied";
     break;
   case LIBUSB_ERROR_NO_DEVICE:
     num = Val_int(3);
-    msg = "No such device";
     break;
   case LIBUSB_ERROR_NOT_FOUND:
     num = Val_int(4);
-    msg = "Entity not found";
     break;
   case LIBUSB_ERROR_BUSY:
     num = Val_int(5);
-    msg = "Resource busy";
     break;
   case LIBUSB_ERROR_TIMEOUT:
     num = Val_int(6);
-    msg = "Operation timed out";
     break;
   case LIBUSB_ERROR_OVERFLOW:
     num = Val_int(7);
-    msg = "Overflow";
     break;
   case LIBUSB_ERROR_PIPE:
     num = Val_int(8);
-    msg = "Pipe error";
     break;
   case LIBUSB_ERROR_INTERRUPTED:
     num = Val_int(9);
-    msg = "System call interrupted";
     break;
   case LIBUSB_ERROR_NO_MEM:
     num = Val_int(10);
-    msg = "Insufficient memory";
     break;
   case LIBUSB_ERROR_NOT_SUPPORTED:
     num = Val_int(11);
-    msg = "Operation not supported or unimplemented on this platform";
     break;
   case LIBUSB_ERROR_OTHER:
     num = Val_int(12);
-    msg = "Other error";
     break;
-  default:
-    sprintf(desc, "libusb: unknown error (%d)", code);
-    caml_failwith(desc);
+  default: {
+    char str[512];
+    sprintf(str, "ocaml-usb: unknown error (%d)", code);
+    caml_failwith(str);
   }
-  sprintf(desc, "libusb_%s: %s", fun_name, msg);
+  }
   arg[0] = num;
-  arg[1] = caml_copy_string(desc);
+  arg[1] = caml_copy_string(fun_name);
   caml_raise_with_args(*caml_named_value("ocaml-usb:Error"), 2, arg);
 }
 
@@ -541,37 +527,23 @@ static unsigned char *ml_usb_alloc_buffer(int length)
 }
 
 /* Convert an error transfer status to an exception */
-static void ml_usb_transfer_error(enum libusb_transfer_status status, value *num, char **msg)
+static value ml_usb_transfer_error(enum libusb_transfer_status status)
 {
   switch(status) {
   case LIBUSB_TRANSFER_ERROR:
-    *num = Val_int(0);
-    *msg = "Transfer failed";
-    break;
+    return Val_int(0);
   case LIBUSB_TRANSFER_TIMED_OUT:
-    *num = Val_int(1);
-    *msg = "Transfer timed out";
-    break;
+    return Val_int(1);
   case LIBUSB_TRANSFER_CANCELLED:
-    *num = Val_int(2);
-    *msg = "Transfer was cancelled";
-    break;
+    return Val_int(2);
   case LIBUSB_TRANSFER_STALL:
-    *num = Val_int(3);
-    *msg = "Transfer stalled";
-    break;
+    return Val_int(3);
   case LIBUSB_TRANSFER_NO_DEVICE:
-    *num = Val_int(4);
-    *msg = "Device was disconnected";
-    break;
+    return Val_int(4);
   case LIBUSB_TRANSFER_OVERFLOW:
-    *num = Val_int(5);
-    *msg = "Device sent more data than requested";
-    break;
+    return Val_int(5);
   default:
-    *num = Val_int(0);
-    *msg = "Unknown error";
-    break;
+    return Val_int(0);
   }
 }
 
@@ -593,12 +565,8 @@ static void ml_usb_handle_recv(struct libusb_transfer *transfer)
     Store_field(result, 0, Val_int(transfer->actual_length));
   } else {
     /* Returns [Error status] */
-    result = caml_alloc(2, 1);
-    value num;
-    char *msg;
-    ml_usb_transfer_error(transfer->status, &num, &msg);
-    Store_field(result, 0, num);
-    Store_field(result, 1, caml_copy_string(msg));
+    result = caml_alloc(1, 1);
+    Store_field(result, 0, ml_usb_transfer_error(transfer->status));
   }
 
   /* Unregister the memory root: */
@@ -627,12 +595,8 @@ void ml_usb_handle_send(struct libusb_transfer *transfer)
     Store_field(result, 0, Val_int(transfer->actual_length));
   } else {
     /* Returns [Error status] */
-    result = caml_alloc(2, 1);
-    value num;
-    char *msg;
-    ml_usb_transfer_error(transfer->status, &num, &msg);
-    Store_field(result, 0, num);
-    Store_field(result, 1, caml_copy_string(msg));
+    result = caml_alloc(1, 1);
+    Store_field(result, 0, ml_usb_transfer_error(transfer->status));
   }
 
   /* Unregister the memory root: */
