@@ -5,46 +5,60 @@
 #
 # This file is a part of ocaml-usb.
 
-OC = ocamlbuild -classic-display
-OF = ocamlfind
+# +------------------------------------------------------------------+
+# | Configuration                                                    |
+# +------------------------------------------------------------------+
 
-# Project name
-NAME = usb
+# Tools
+OCAMLFIND := ocamlfind
+OCAMLBUILD := ocamlbuild
+
+# Use classic-display when compiling under a terminal which does not
+# support ANSI sequence:
+ifeq ($(TERM),dumb)
+OCAMLBUILD += -classic-display
+endif
+
+# Avoid compilation of native plugin if ocamlopt is not available
+ifeq ($(shell if which ocamlopt >/dev/null; then echo yes; fi),)
+OCAMLBUILD += -byte-plugin
+endif
+
+# +------------------------------------------------------------------+
+# | Rules                                                            |
+# +------------------------------------------------------------------+
 
 .PHONY: all
 all:
-	$(OC) META $(NAME).cma $(NAME).cmxa
-
-.PHONY: examples
-examples:
-	$(OC) `cat examples.itarget`
+	$(OCAMLBUILD) all
 
 .PHONY: doc
 doc:
-	$(OC) $(NAME).docdir/index.html
+	$(OCAMLBUILD) usb.docdir/index.html
 
 .PHONY: dist
 dist:
-	DARCS_REPO=$(PWD) darcs dist --dist-name $(NAME)-`head -n 1 VERSION`
+	DARCS_REPO=$(PWD) darcs dist --dist-name ocaml-usb-`head -n 1 VERSION`
 
 .PHONY: install
 install:
-	$(OF) install $(NAME) _build/META \
-	  _build/src/*.mli \
-	  _build/src/*.cmi \
-	  _build/src/*.cmx \
-	  _build/*.a \
-	  _build/*.cma \
-	  _build/*.cmxa \
-	  _build/*.so
+	$(OCAMLFIND) install usb _build/META \
+	  $(wildcard _build/src/*.mli) \
+	  $(wildcard _build/src/*.cmi) \
+	  $(wildcard _build/src/*.cmx) \
+	  $(wildcard _build/*.a) \
+	  $(wildcard _build/*.cma) \
+	  $(wildcard _build/*.cmxa) \
+	  $(wildcard _build/*.so)
 
 .PHONY: uninstall
 uninstall:
-	$(OF) remove $(NAME)
+	$(OCAMLFIND) remove usb
 
 .PHONY: reinstall
 reinstall: uninstall install
 
 .PHONY: clean
 clean:
-	$(OC) -clean
+	$(OCAMLBUILD) -clean
+	cd examples && $(MAKE) clean

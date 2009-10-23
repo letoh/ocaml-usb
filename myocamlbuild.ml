@@ -10,16 +10,24 @@
 open Printf
 open Ocamlbuild_plugin
 
-(* List of syntax extensions used internally. It is a list of:
+(* +-----------------------------------------------------------------+
+   | Configuration                                                   |
+   +-----------------------------------------------------------------+ *)
 
-   (tag, byte-code-file)
+let try_exec command =
+  try
+    let _ = run_and_read command in
+    true
+  with _ ->
+    false
 
-   - tag is the tag that must be used inside the source tree (in _tags
-   files) in order to have file preprocessed with the given syntax extension
+let () =
+  if not (try_exec "ocamlfind printconf") then begin
+    prerr_endline "ocamlfind is not available, please install it";
+    exit 1
+  end
 
-   - byte-code-file is the byte-code for the syntax extension
-*)
-let intern_syntaxes = [ ]
+let have_native = try_exec "ocamlfind ocamlopt -version"
 
 (* +-----------------------------------------------------------------+
    | Ocamlfind                                                       |
@@ -117,20 +125,25 @@ let _ =
 
     | After_rules ->
 
-        define_lib ~dir:"src" "usb";
-
         (* +---------------------------------------------------------+
-           | Internal syntaxes                                       |
+           | Virtual targets                                         |
            +---------------------------------------------------------+ *)
 
-        List.iter
-          (fun (tag, file) ->
-             (* add "-ppopt file" to files using the syntax extension *)
-             flag_all_stages_except_link tag & S[A"-ppopt"; A file];
+        let virtual_rule name deps =
+          rule name ~stamp:name ~deps (fun _ _ -> Nop)
+        in
 
-             (* Make them depends on the syntax extension *)
-             dep ["ocaml"; "ocamldep"; tag] [file])
-          intern_syntaxes;
+        virtual_rule "all" & "META" :: if have_native then ["usb.cma"; "usb.cmxa"; "usb.cmxs"] else ["usb.cma"];
+        virtual_rule "byte" & ["META"; "usb.cma"];
+        virtual_rule "native" & ["META"; "usb.cmxa"; "usb.cmxs"];
+
+        (* +---------------------------------------------------------+
+           | Shared libraries                                        |
+           +---------------------------------------------------------+ *)
+
+        rule "shared libraries (cmxs)"
+          ~dep:"%.cmxa" ~prod:"%.cmxs"
+          (fun env _ -> Cmd(S[!(Options.ocamlopt); A"-cclib"; A"-L."; A"-shared"; A"-linkall"; A(env "%.cmxa"); A"-o"; A(env "%.cmxs")]));
 
         (* +---------------------------------------------------------+
            | Ocamlfind stuff                                         |
@@ -196,9 +209,6 @@ let _ =
 
         (* OCaml llibraries must depends on the C library libusb: *)
         flag ["link"; "ocaml"; "use_libusb"] & cclib;
-
-        (* Otherwise the linker does not found the stubs: *)
-        flag ["link"; "ocaml"; "use_usb"] & S[A"-cclib"; A"-L."];
 
         (* +---------------------------------------------------------+
            | Other                                                   |
