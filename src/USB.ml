@@ -112,14 +112,17 @@ type request_type =
   | Reserved
 type request = int
 type configuration = int
+type iso_result =
+  | Iso_ok of int
+  | Iso_error of transfer_error * string
 
 (* +-----------------------------------------------------------------+
    | Stub functions                                                  |
    +-----------------------------------------------------------------+ *)
 
 (* Result of a transfer: *)
-type transfer_result =
-  | OK of int
+type 'a result =
+  | OK of 'a
   | Error of transfer_error
 
 external ml_usb_init : unit -> unit = "ml_usb_init"
@@ -142,12 +145,14 @@ external ml_usb_detach_kernel_driver : device_handle -> interface -> unit = "ml_
 external ml_usb_attach_kernel_driver : device_handle -> interface -> unit = "ml_usb_attach_kernel_driver"
 external ml_usb_handle_events : unit -> unit = "ml_usb_handle_events"
 external ml_usb_collect_sources : Unix.file_descr list -> Unix.file_descr list -> Unix.file_descr list * Unix.file_descr list * float option = "ml_usb_collect_sources"
-external ml_usb_bulk_recv : device_handle * endpoint * int * string * int * int * (transfer_result -> unit) -> transfer = "ml_usb_bulk_recv"
-external ml_usb_bulk_send : device_handle * endpoint * int * string * int * int * (transfer_result -> unit) -> transfer = "ml_usb_bulk_send"
-external ml_usb_interrupt_recv : device_handle * endpoint * int * string * int * int * (transfer_result -> unit) -> transfer = "ml_usb_interrupt_recv"
-external ml_usb_interrupt_send : device_handle * endpoint * int * string * int * int * (transfer_result -> unit) -> transfer = "ml_usb_interrupt_send"
-external ml_usb_control_recv : device_handle * endpoint * int * string * int * int * (transfer_result -> unit) * recipient * request_type * request * int * int -> transfer = "ml_usb_control_recv"
-external ml_usb_control_send : device_handle * endpoint * int * string * int * int * (transfer_result -> unit) * recipient * request_type * request * int * int -> transfer = "ml_usb_control_send"
+external ml_usb_bulk_recv : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_bulk_recv"
+external ml_usb_bulk_send : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_bulk_send"
+external ml_usb_interrupt_recv : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_interrupt_recv"
+external ml_usb_interrupt_send : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_interrupt_send"
+external ml_usb_control_recv : device_handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int -> transfer = "ml_usb_control_recv"
+external ml_usb_control_send : device_handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int -> transfer = "ml_usb_control_send"
+external ml_usb_iso_recv : device_handle * endpoint * int * string * int * int * (int result list result -> unit) * int * int list -> transfer = "ml_usb_iso_recv"
+external ml_usb_iso_send : device_handle * endpoint * int * string * int * int * (int result list result -> unit) * int * int list -> transfer = "ml_usb_iso_send"
 external ml_usb_reset_device : device_handle -> unit = "ml_usb_reset_device"
 external ml_usb_cancel_transfer : transfer -> unit = "ml_usb_cancel_transfer"
 external ml_usb_set_interface_alt_setting : device_handle -> interface -> int -> unit = "ml_usb_set_interface_alt_setting"
@@ -368,7 +373,7 @@ let make_timeout = function
 
 let transfer name func ~handle ~endpoint ?timeout buffer offset length =
   check_handle handle;
-  if offset < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
+  if offset < 0 || length < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
   let waiter, wakener = Lwt.task () in
   let transfer = func (handle.handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result name wakener) in
   Lwt.on_cancel waiter (fun () -> ml_usb_cancel_transfer transfer);
@@ -381,7 +386,7 @@ let interrupt_send = transfer "interrupt_send" ml_usb_interrupt_send
 
 let control_transfer name func ~handle ~endpoint ?timeout ?(recipient=Device) ?(request_type=Standard) ~request ~value ~index buffer offset length =
   check_handle handle;
-  if offset < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
+  if offset < 0 || length < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
   let waiter, wakener = Lwt.wait () in
   let transfer = func (handle.handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result name wakener, recipient, request_type, request, value, index) in
   Lwt.on_cancel waiter (fun () -> ml_usb_cancel_transfer transfer);
@@ -389,6 +394,29 @@ let control_transfer name func ~handle ~endpoint ?timeout ?(recipient=Device) ?(
 
 let control_recv = control_transfer "control_recv" ml_usb_control_recv
 let control_send = control_transfer "control_send" ml_usb_control_send
+
+let handle_iso_result func_name w = function
+  | OK l -> Lwt.wakeup w (List.rev_map (function
+                                          | OK x -> Iso_ok x
+                                          | Error error -> Iso_error(error, func_name)) l)
+  | Error error -> Lwt.wakeup_exn w (Transfer(error, func_name))
+
+let iso_transfer name func ~handle ~endpoint ?timeout buffer offset lengths =
+  check_handle handle;
+  if lengths = [] then
+    return []
+  else begin
+    List.iter (fun length -> if length < 0 then invalid_arg ("USB." ^ name)) lengths;
+    let length = List.fold_left (+) 0 lengths in
+    if offset < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
+    let waiter, wakener = Lwt.wait () in
+    let transfer = func (handle.handle, endpoint, make_timeout timeout, buffer, offset, length, handle_iso_result name wakener, List.length lengths, lengths) in
+    Lwt.on_cancel waiter (fun () -> ml_usb_cancel_transfer transfer);
+    waiter
+  end
+
+let iso_recv = iso_transfer "iso_recv" ml_usb_iso_recv
+let iso_send = iso_transfer "iso_send" ml_usb_iso_send
 
 (* +-----------------------------------------------------------------+
    | Standard request                                                |

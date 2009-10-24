@@ -547,6 +547,29 @@ static value ml_usb_transfer_error(enum libusb_transfer_status status)
   }
 }
 
+
+/* Construct the result of an isochronous transfer: */
+static value ml_usb_iso_result(struct libusb_transfer *transfer)
+{
+  CAMLparam0();
+  CAMLlocal3(list, x, y);
+  int i;
+  for (i = 0; i < transfer->num_iso_packets; i++) {
+    if (transfer->iso_packet_desc[i].status == LIBUSB_TRANSFER_COMPLETED) {
+      x = caml_alloc(1, 0);
+      Store_field(x, 0, Val_int(transfer->iso_packet_desc[i].actual_length));
+    } else {
+      x = caml_alloc(1, 1);
+      Store_field(x, 0, ml_usb_transfer_error(transfer->status));
+    }
+    y = caml_alloc_tuple(2);
+    Store_field(y, 0, x);
+    Store_field(y, 1, list);
+    list = y;
+  }
+  CAMLreturn(list);
+}
+
 /* Handler for device-to-host transfers: */
 static void ml_usb_handle_recv(struct libusb_transfer *transfer)
 {
@@ -562,7 +585,12 @@ static void ml_usb_handle_recv(struct libusb_transfer *transfer)
            transfer->buffer, transfer->actual_length);
     /* Returns [OK actual_length] */
     result = caml_alloc(1, 0);
-    Store_field(result, 0, Val_int(transfer->actual_length));
+    if (transfer->num_iso_packets == 0)
+      /* Classic transfer */
+      Store_field(result, 0, Val_int(transfer->actual_length));
+    else
+      /* Isochronous transfer */
+      Store_field(result, 0, ml_usb_iso_result(transfer));
   } else {
     /* Returns [Error status] */
     result = caml_alloc(1, 1);
@@ -592,7 +620,12 @@ void ml_usb_handle_send(struct libusb_transfer *transfer)
 
   if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
     result = caml_alloc(1, 0);
-    Store_field(result, 0, Val_int(transfer->actual_length));
+    if (transfer->num_iso_packets == 0)
+      /* Classic transfer */
+      Store_field(result, 0, Val_int(transfer->actual_length));
+    else
+      /* Isochronous transfer */
+      Store_field(result, 0, ml_usb_iso_result(transfer));
   } else {
     /* Returns [Error status] */
     result = caml_alloc(1, 1);
@@ -614,15 +647,17 @@ void ml_usb_handle_send(struct libusb_transfer *transfer)
 /* Alloc a transfer and fill it with common informations: */
 struct libusb_transfer *ml_usb_transfer(value desc /* the description provided by the caml function: */,
                                         value meta /* metadata for the callback */,
-                                        enum libusb_endpoint_direction direction)
+                                        enum libusb_endpoint_direction direction,
+                                        int num_iso_packets)
 {
-  struct libusb_transfer *transfer = ml_usb_alloc_transfer(0);
+  struct libusb_transfer *transfer = ml_usb_alloc_transfer(num_iso_packets);
   transfer->dev_handle = Handle_val(Field(desc, 0));
   transfer->endpoint = Int_val(Field(desc, 1)) | direction;
   transfer->timeout = Int_val(Field(desc, 2));
   transfer->buffer = ml_usb_alloc_buffer(Int_val(Field(desc, 5)));
   transfer->length = Int_val(Field(desc, 5));
   transfer->user_data = (void*)meta;
+  transfer->num_iso_packets = num_iso_packets;
 
   /* Register metadata as a memory root, because we need it for the
      callback which will be called later: */
@@ -632,7 +667,7 @@ struct libusb_transfer *ml_usb_transfer(value desc /* the description provided b
 }
 
 /* Device-to-host transfers, for interrupt or bulk transfers: */
-CAMLprim value ml_usb_recv(value desc, enum libusb_transfer_type type)
+CAMLprim value ml_usb_recv(value desc, enum libusb_transfer_type type, int num_iso_packets)
 {
   CAMLparam1(desc);
   CAMLlocal1(meta);
@@ -646,7 +681,7 @@ CAMLprim value ml_usb_recv(value desc, enum libusb_transfer_type type)
   /* - the offset in the buffer: */
   Store_field(meta, 2, Field(desc, 4));
 
-  struct libusb_transfer *transfer = ml_usb_transfer(desc, meta, LIBUSB_ENDPOINT_IN);
+  struct libusb_transfer *transfer = ml_usb_transfer(desc, meta, LIBUSB_ENDPOINT_IN, num_iso_packets);
   transfer->callback = ml_usb_handle_recv;
   transfer->type = type;
 
@@ -657,10 +692,10 @@ CAMLprim value ml_usb_recv(value desc, enum libusb_transfer_type type)
 }
 
 /* Host-to-device transfers, for interrupt or bulk transfers: */
-CAMLprim value ml_usb_send(value desc, enum libusb_transfer_type type)
+CAMLprim value ml_usb_send(value desc, enum libusb_transfer_type type, int num_iso_packets)
 {
   /* Metadata contains only the callback: */
-  struct libusb_transfer *transfer = ml_usb_transfer(desc, Field(desc, 6), LIBUSB_ENDPOINT_OUT);
+  struct libusb_transfer *transfer = ml_usb_transfer(desc, Field(desc, 6), LIBUSB_ENDPOINT_OUT, num_iso_packets);
   transfer->callback = ml_usb_handle_send;
   transfer->type = type;
 
@@ -675,22 +710,22 @@ CAMLprim value ml_usb_send(value desc, enum libusb_transfer_type type)
 
 CAMLprim value ml_usb_bulk_recv(value desc)
 {
-  return ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_BULK);
+  return ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_BULK, 0);
 }
 
 CAMLprim value ml_usb_bulk_send(value desc)
 {
-  return ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_BULK);
+  return ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_BULK, 0);
 }
 
 CAMLprim value ml_usb_interrupt_recv(value desc)
 {
-  return ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_INTERRUPT);
+  return ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_INTERRUPT, 0);
 }
 
 CAMLprim value ml_usb_interrupt_send(value desc)
 {
-  return ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_INTERRUPT);
+  return ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_INTERRUPT, 0);
 }
 
 /* Generic function which filling the data section of a control transfer: */
@@ -705,9 +740,9 @@ CAMLprim value ml_usb_control(value desc, enum libusb_endpoint_direction directi
   control->wLength = libusb_cpu_to_le16(length);
   Field(desc, 5) = Val_int(length + LIBUSB_CONTROL_SETUP_SIZE);
   if (direction == LIBUSB_ENDPOINT_IN)
-    return ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_CONTROL);
+    return ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_CONTROL, 0);
   else
-    return ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_CONTROL);
+    return ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_CONTROL, 0);
 }
 
 CAMLprim value ml_usb_control_recv(value desc)
@@ -718,4 +753,30 @@ CAMLprim value ml_usb_control_recv(value desc)
 CAMLprim value ml_usb_control_send(value desc)
 {
   return ml_usb_control(desc, LIBUSB_ENDPOINT_OUT);
+}
+
+CAMLprim value ml_usb_iso(value desc, enum libusb_endpoint_direction direction)
+{
+  int num_iso_packets = Int_val(Field(desc, 7));
+  value val_transfer;
+  if (direction == LIBUSB_ENDPOINT_IN)
+    val_transfer = ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_ISOCHRONOUS, num_iso_packets);
+  else
+    val_transfer = ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_ISOCHRONOUS, num_iso_packets);
+  struct libusb_transfer *transfer = Transfer_val(val_transfer);
+  int i;
+  value x = Field(desc, 8);
+  for (i = 0; i < num_iso_packets; i++, x = Field(x, 1))
+    transfer->iso_packet_desc[i].length = Int_val(Field(x, 0));
+  return val_transfer;
+}
+
+CAMLprim value ml_usb_iso_recv(value desc)
+{
+  return ml_usb_iso(desc, LIBUSB_ENDPOINT_IN);
+}
+
+CAMLprim value ml_usb_iso_send(value desc)
+{
+  return ml_usb_iso(desc, LIBUSB_ENDPOINT_OUT);
 }

@@ -424,22 +424,26 @@ val interrupt_send :
 
 (** {8 Isochronous transfers} *)
 
-(*type iso_result =
-  | Iso_ok of 'a
+(** Result of the transfer of one packet in an isochronous
+    transfer: *)
+type iso_result =
+  | Iso_ok of int
+      (** The packet has been transfered successfully *)
   | Iso_error of transfer_error * string
+      (** [Iso_error(error, func_name)] An error occured *)
 
 val iso_recv :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  string -> int -> int list -> int result list Lwt.t
+  string -> int -> int list -> iso_result list Lwt.t
 
 val iso_send :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  string -> int -> int list -> int result list Lwt.t
-*)
+  string -> int -> int list -> iso_result list Lwt.t
+
 (** {8 Control transfers} *)
 
 type recipient =
