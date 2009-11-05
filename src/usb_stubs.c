@@ -183,7 +183,7 @@ CAMLprim value ml_usb_get_device_list(value unit)
   libusb_device **devices;
 
   size_t cnt = libusb_get_device_list(NULL, &devices);
-  if (cnt < 0)
+  if ((int)cnt < 0)
     ml_usb_error(cnt, "get_device_list");
 
   /* Convert the array to a caml list */
