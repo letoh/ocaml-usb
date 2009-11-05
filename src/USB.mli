@@ -262,7 +262,7 @@ type endpoint_descriptor = {
 
   ed_attributes : int;
   (** Attributes which apply to the endpoint when it is configured
-      using the bConfigurationValue. *)
+      using the {!cd_configuration_value}. *)
 
   ed_max_packet_size : int;
   (** Maximum packet size this endpoint is capable of
