@@ -169,6 +169,8 @@ let _ =
            | C stubs                                                 |
            +---------------------------------------------------------+ *)
 
+        flag ["c"; "compile"] & S[A"-ccopt"; A"-Wall"];
+
         (* Search 'pkg-config': *)
         let pkg_config = try
           Command.search_in_path "pkg-config"
