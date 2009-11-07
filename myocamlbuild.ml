@@ -121,7 +121,6 @@ let _ =
         Options.ocamlc   := ocamlfind "ocamlc";
         Options.ocamlopt := ocamlfind "ocamlopt";
         Options.ocamldep := ocamlfind "ocamldep";
-        Options.ocamldoc := ocamlfind "ocamldoc";
         Options.ocamldoc := S[A"ocamlfind"; A"ocamldoc"; A"-hide-warnings"]
 
     | After_rules ->
