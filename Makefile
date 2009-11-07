@@ -49,6 +49,7 @@ install:
 	  $(wildcard _build/*.a) \
 	  $(wildcard _build/*.cma) \
 	  $(wildcard _build/*.cmxa) \
+	  $(wildcard _build/*.cmxs) \
 	  $(wildcard _build/*.so)
 
 .PHONY: uninstall
