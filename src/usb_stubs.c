@@ -95,20 +95,23 @@ static struct libusb_transfer *ml_usb_alloc_transfer(int count)
    | Initialization                                                  |
    +-----------------------------------------------------------------+ */
 
-void ml_usb_init()
+CAMLprim value ml_usb_init()
 {
   int res = libusb_init(NULL);
   if (res) ml_usb_error(res, "init");
+  return Val_unit;
 }
 
-void ml_usb_exit()
+CAMLprim value ml_usb_exit()
 {
   libusb_exit(NULL);
+  return Val_unit;
 }
 
-void ml_usb_set_debug(value level)
+CAMLprim value ml_usb_set_debug(value level)
 {
   libusb_set_debug(NULL, Int_val(level));
+  return Val_unit;
 }
 
 /* +-----------------------------------------------------------------+
@@ -202,17 +205,17 @@ CAMLprim value ml_usb_get_device_list(value unit)
   CAMLreturn(x);
 }
 
-value ml_usb_get_bus_number(value dev)
+CAMLprim value ml_usb_get_bus_number(value dev)
 {
   return Val_int(libusb_get_bus_number(Device_val(dev)));
 }
 
-value ml_usb_get_device_address(value dev)
+CAMLprim value ml_usb_get_device_address(value dev)
 {
   return Val_int(libusb_get_device_address(Device_val(dev)));
 }
 
-value ml_usb_get_max_packet_size(value dev, value direction, value endpoint)
+CAMLprim value ml_usb_get_max_packet_size(value dev, value direction, value endpoint)
 {
   int res = libusb_get_max_packet_size(Device_val(dev), Endpoint_val(endpoint, direction));
   if (res < 0) ml_usb_error(res, "get_max_packet_size");
@@ -242,9 +245,10 @@ CAMLprim value ml_usb_open_device_with_vid_pid(value vid, value pid)
   }
 }
 
-void ml_usb_close(value handle)
+CAMLprim value ml_usb_close(value handle)
 {
   libusb_close(Handle_val(handle));
+  return Val_unit;
 }
 
 CAMLprim value ml_usb_get_device(value handle)
@@ -255,19 +259,21 @@ CAMLprim value ml_usb_get_device(value handle)
   CAMLreturn(alloc_device(device));
 }
 
-void ml_usb_claim_interface(value handle, value interface)
+CAMLprim value ml_usb_claim_interface(value handle, value interface)
 {
   int res = libusb_claim_interface(Handle_val(handle), Int_val(interface));
   if (res) ml_usb_error(res, "claim_interface");
+  return Val_unit;
 }
 
-void ml_usb_release_interface(value handle, value interface)
+CAMLprim value ml_usb_release_interface(value handle, value interface)
 {
   int res = libusb_release_interface(Handle_val(handle), Int_val(interface));
   if (res) ml_usb_error(res, "release_interface");
+  return Val_unit;
 }
 
-value ml_usb_kernel_driver_active(value handle, value interface)
+CAMLprim value ml_usb_kernel_driver_active(value handle, value interface)
 {
   int res = libusb_kernel_driver_active(Handle_val(handle), Int_val(interface));
   switch (res) {
@@ -281,19 +287,21 @@ value ml_usb_kernel_driver_active(value handle, value interface)
   }
 }
 
-void ml_usb_detach_kernel_driver(value handle, value interface)
+CAMLprim value ml_usb_detach_kernel_driver(value handle, value interface)
 {
   int res = libusb_detach_kernel_driver(Handle_val(handle), Int_val(interface));
   if (res) ml_usb_error(res, "detach_kernel_driver");
+  return Val_unit;
 }
 
-void ml_usb_attach_kernel_driver(value handle, value interface)
+CAMLprim value ml_usb_attach_kernel_driver(value handle, value interface)
 {
   int res = libusb_attach_kernel_driver(Handle_val(handle), Int_val(interface));
   if (res) ml_usb_error(res, "attach_kernel_driver");
+  return Val_unit;
 }
 
-value ml_usb_get_configuration(value handle)
+CAMLprim value ml_usb_get_configuration(value handle)
 {
   int config;
   int res = libusb_get_configuration(Handle_val(handle), &config);
@@ -301,28 +309,32 @@ value ml_usb_get_configuration(value handle)
   return Val_int(config);
 }
 
-void ml_usb_set_configuration(value handle, value config)
+CAMLprim value ml_usb_set_configuration(value handle, value config)
 {
   int res = libusb_set_configuration(Handle_val(handle), Int_val(config));
   if (res) ml_usb_error(res, "set_configuration");
+  return Val_unit;
 }
 
-void ml_usb_set_interface_alt_setting(value handle, value interface, value alt_setting)
+CAMLprim value ml_usb_set_interface_alt_setting(value handle, value interface, value alt_setting)
 {
   int res = libusb_set_interface_alt_setting(Handle_val(handle), Int_val(interface), Int_val(alt_setting));
   if (res) ml_usb_error(res, "set_interface_alt_setting");
+  return Val_unit;
 }
 
-void ml_usb_clear_halt(value handle, value endpoint)
+CAMLprim value ml_usb_clear_halt(value handle, value endpoint)
 {
   int res = libusb_clear_halt(Handle_val(handle), Int_val(endpoint));
   if (res) ml_usb_error(res, "clear_halt");
+  return Val_unit;
 }
 
-void ml_usb_reset_device(value handle)
+CAMLprim value ml_usb_reset_device(value handle)
 {
   int res = libusb_reset_device(Handle_val(handle));
   if (res) ml_usb_error(res, "reset_device");
+  return Val_unit;
 }
 
 /* +-----------------------------------------------------------------+
@@ -511,10 +523,11 @@ static value alloc_transfer(struct libusb_transfer *transfer)
   return x;
 }
 
-CAMLprim void ml_usb_cancel_transfer(value transfer)
+CAMLprim value ml_usb_cancel_transfer(value transfer)
 {
   int res = libusb_cancel_transfer(Transfer_val(transfer));
   if (res) ml_usb_error(res, "cancel_transfer");
+  return Val_unit;
 }
 
 /* Allocate a buffer, taking cares of remarks about overflows from the
