@@ -150,9 +150,13 @@ static struct custom_operations device_ops = {
 
 #define Handle_val(v) *(libusb_device_handle**)Data_custom_val(v)
 
-static void ml_usb_device_handle_finalize(value handle)
+static void ml_usb_device_handle_finalize(value vhandle)
 {
-  libusb_close(Handle_val(handle));
+  libusb_device_handle *handle = Handle_val(vhandle);
+  if (handle) {
+    Handle_val(vhandle) = NULL;
+    libusb_close(handle);
+  }
 }
 
 static struct custom_operations handle_ops = {
@@ -245,9 +249,13 @@ CAMLprim value ml_usb_open_device_with_vid_pid(value vid, value pid)
   }
 }
 
-CAMLprim value ml_usb_close(value handle)
+CAMLprim value ml_usb_close(value vhandle)
 {
-  libusb_close(Handle_val(handle));
+  libusb_device_handle *handle = Handle_val(vhandle);
+  if (handle) {
+    Handle_val(vhandle) = NULL;
+    libusb_close(handle);
+  }
   return Val_unit;
 }
 
