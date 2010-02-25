@@ -66,6 +66,16 @@ let transfer_error_message = function
   | Transfer_no_device -> "Device was disconnected"
   | Transfer_overflow -> "Device sent more data than requested"
 
+let () =
+  Printexc.register_printer
+    (function
+       | Error(err, fun_name) ->
+           Some(Printf.sprintf "USB error: '%s' failed: %s" fun_name (error_message err))
+       | Transfer(err, fun_name) ->
+           Some(Printf.sprintf "USB transfer error: '%s' failed: %s" fun_name (transfer_error_message err))
+       | exn ->
+           None)
+
 let handle_error f arg =
   try
     f arg
