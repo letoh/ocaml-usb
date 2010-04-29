@@ -123,6 +123,16 @@ let _ =
         Options.ocamldep := ocamlfind "ocamldep";
         Options.ocamldoc := S[A"ocamlfind"; A"ocamldoc"; A"-hide-warnings"]
 
+    | Before_rules ->
+
+        (* +---------------------------------------------------------+
+           | Shared libraries                                        |
+           +---------------------------------------------------------+ *)
+
+        rule "shared libraries (cmxs)"
+          ~dep:"%.cmxa" ~prod:"%.cmxs"
+          (fun env _ -> Cmd(S[!(Options.ocamlopt); A"-cclib"; A"-L."; A"-shared"; A"-linkall"; A(env "%.cmxa"); A"-o"; A(env "%.cmxs")]))
+
     | After_rules ->
 
         (* +---------------------------------------------------------+
@@ -136,14 +146,6 @@ let _ =
         virtual_rule "all" & "META" :: if have_native then ["usb.cma"; "usb.cmxa"; "usb.cmxs"] else ["usb.cma"];
         virtual_rule "byte" & ["META"; "usb.cma"];
         virtual_rule "native" & ["META"; "usb.cmxa"; "usb.cmxs"];
-
-        (* +---------------------------------------------------------+
-           | Shared libraries                                        |
-           +---------------------------------------------------------+ *)
-
-        rule "shared libraries (cmxs)"
-          ~dep:"%.cmxa" ~prod:"%.cmxs"
-          (fun env _ -> Cmd(S[!(Options.ocamlopt); A"-cclib"; A"-L."; A"-shared"; A"-linkall"; A(env "%.cmxa"); A"-o"; A(env "%.cmxs")]));
 
         (* +---------------------------------------------------------+
            | Ocamlfind stuff                                         |
