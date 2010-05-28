@@ -397,7 +397,7 @@ let interrupt_send = transfer "interrupt_send" ml_usb_interrupt_send
 let control_transfer name func ~handle ~endpoint ?timeout ?(recipient=Device) ?(request_type=Standard) ~request ~value ~index buffer offset length =
   check_handle handle;
   if offset < 0 || length < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
-  let waiter, wakener = Lwt.wait () in
+  let waiter, wakener = Lwt.task () in
   let transfer = func (handle.handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result name wakener, recipient, request_type, request, value, index) in
   Lwt.on_cancel waiter (fun () -> ml_usb_cancel_transfer transfer);
   waiter
@@ -419,7 +419,7 @@ let iso_transfer name func ~handle ~endpoint ?timeout buffer offset lengths =
     List.iter (fun length -> if length < 0 then invalid_arg ("USB." ^ name)) lengths;
     let length = List.fold_left (+) 0 lengths in
     if offset < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
-    let waiter, wakener = Lwt.wait () in
+    let waiter, wakener = Lwt.task () in
     let transfer = func (handle.handle, endpoint, make_timeout timeout, buffer, offset, length, handle_iso_result name wakener, List.length lengths, lengths) in
     Lwt.on_cancel waiter (fun () -> ml_usb_cancel_transfer transfer);
     waiter
