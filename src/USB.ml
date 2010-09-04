@@ -468,7 +468,7 @@ let get_string_descriptor handle ?timeout ?lang_id ~index =
           ~index:0
           data 0 (String.length data) in
         if n < 4 then
-          fail (Failure "USB.get_string_descriptor: cannot retreive default lang id")
+          raise_lwt (Failure "USB.get_string_descriptor: cannot retreive default lang id")
         else
           return (Char.code data.[2] lor (Char.code data.[3] lsl 8))
   in
@@ -482,6 +482,6 @@ let get_string_descriptor handle ?timeout ?lang_id ~index =
     data 0 (String.length data) in
   let len = Char.code data.[0] in
   if Char.code data.[1] <> DT.string || len > n then
-    fail (Failure "USB.get_string_descriptor: invalid control packet")
+    raise_lwt (Failure "USB.get_string_descriptor: invalid control packet")
   else
     return (String.sub data 2 (len - 2))
