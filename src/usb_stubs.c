@@ -17,6 +17,8 @@
 #include <poll.h>
 #include <string.h>
 #include <stdio.h>
+#include <ev.h>
+#include <sys/time.h>
 
 /* +-----------------------------------------------------------------+
    | Errors                                                          |
@@ -92,13 +94,111 @@ static struct libusb_transfer *ml_usb_alloc_transfer(int count)
 }
 
 /* +-----------------------------------------------------------------+
+   | Event-loop integration                                          |
+   +-----------------------------------------------------------------+ */
+
+void ml_usb_handle_events()
+{
+  struct timeval tp = { 0, 0 };
+  int res = libusb_handle_events_timeout(NULL, &tp);
+  if (res) ml_usb_error(res, "handle_event_timeout");
+}
+
+static ev_timer timer_watcher;
+
+static void ml_usb_timer_prepare(struct ev_loop *loop, ev_prepare *watcher, int revents)
+{
+  struct timeval tp;
+  if (libusb_get_next_timeout(NULL, &tp) == 1) {
+    /* There is a timeout */
+    ev_timer_set(&timer_watcher, tp.tv_sec + (tp.tv_usec * 1e-3), 0);
+    ev_timer_start(NULL, &timer_watcher);
+  }
+}
+
+static void ml_usb_timer_check(struct ev_loop *loop, ev_check *watcher, int revents)
+{
+  if (ev_is_active(&timer_watcher)) {
+    ev_timer_stop(NULL, &timer_watcher);
+    ml_usb_handle_events();
+  }
+}
+
+struct node {
+  struct ev_io watcher;
+  struct node* next;
+};
+
+static struct node* watchers = NULL;
+
+static void ml_usb_handle_io(struct ev_loop *loop, ev_io *watcher, int revents)
+{
+  ml_usb_handle_events();
+}
+
+static void ml_usb_add_watcher(int fd, int event)
+{
+  struct node* node = (struct node*)ml_usb_malloc(sizeof(struct node*));
+  node->next = watchers;
+  watchers = node;
+  ev_io_init(&(node->watcher), ml_usb_handle_io, fd, event);
+  ev_io_start(NULL, &(node->watcher));
+}
+
+static void ml_usb_add_pollfd(int fd, short events, void *user_data)
+{
+  if (events & POLLIN)
+    ml_usb_add_watcher(fd, EV_READ);
+  if (events & POLLOUT)
+    ml_usb_add_watcher(fd, EV_WRITE);
+}
+
+static void ml_usb_remove_pollfd(int fd, void *user_data)
+{
+  struct node** store = &watchers;
+  struct node* node = watchers;
+  while (node) {
+    if (node->watcher.fd == fd) {
+      ev_io_stop(NULL, &(node->watcher));
+      node = node->next;
+      *store = node;
+    } else {
+      store = &(node->next);
+      node = node->next;
+    }
+  }
+}
+
+/* +-----------------------------------------------------------------+
    | Initialization                                                  |
    +-----------------------------------------------------------------+ */
+
+static void nop() {}
+
+static ev_prepare prepare_watcher;
+static ev_check check_watcher;
 
 CAMLprim value ml_usb_init()
 {
   int res = libusb_init(NULL);
   if (res) ml_usb_error(res, "init");
+
+  libusb_set_pollfd_notifiers(NULL,
+                              ml_usb_add_pollfd,
+                              ml_usb_remove_pollfd,
+                              NULL);
+
+  ev_prepare_init(&prepare_watcher, ml_usb_timer_prepare);
+  ev_set_priority(&prepare_watcher, EV_MINPRI);
+  ev_prepare_start(EV_DEFAULT, &prepare_watcher);
+
+  ev_check_init(&check_watcher, ml_usb_timer_check);
+  ev_set_priority(&check_watcher, EV_MAXPRI);
+  ev_check_start(EV_DEFAULT, &check_watcher);
+
+  ev_init(&timer_watcher, nop);
+  ev_set_priority(&timer_watcher, EV_MINPRI);
+
   return Val_unit;
 }
 
@@ -440,73 +540,6 @@ CAMLprim value ml_usb_get_config_descriptor_by_value(value device, value val)
   int res = libusb_get_config_descriptor_by_value(Device_val(device), Int_val(val), &cd);
   if (res) ml_usb_error(res, "get_config_descriptor_by_value");
   return copy_config_descriptor(cd);
-}
-
-/* +-----------------------------------------------------------------+
-   | Event-loop integration                                          |
-   +-----------------------------------------------------------------+ */
-
-void ml_usb_handle_events()
-{
-  struct timeval tp = { 0, 0 };
-  int res = libusb_handle_events_timeout(NULL, &tp);
-  if (res) ml_usb_error(res, "handle_event_timeout");
-}
-
-/* Returns the list of file-descriptors that libusb want to monitors: */
-CAMLprim value ml_usb_collect_sources(value lr /* List of file-descriptors to monitor for reading */,
-                                      value lw /* List of file-descriptors to monitor for writing */)
-{
-  CAMLparam2(lr, lw);
-  CAMLlocal2(x, result);
-
-  const struct libusb_pollfd **pollfds = libusb_get_pollfds(NULL);
-
-  if (pollfds) {
-    /* Add all fds to the two lists [lr] and [lw] */
-    const struct libusb_pollfd **fds;
-    for (fds = pollfds; *fds; fds++) {
-      value fd = Val_int((*fds)->fd);
-      short ev = (*fds)->events;
-      if (ev & POLLIN) {
-        x = caml_alloc_tuple(2);
-        Store_field(x, 0, fd);
-        Store_field(x, 1, lr);
-        lr = x;
-      }
-      if (ev & POLLOUT) {
-        x = caml_alloc_tuple(2);
-        Store_field(x, 0, fd);
-        Store_field(x, 1, lw);
-        lw = x;
-      }
-      /* libusb only use [POLLIN] and [POLLOUT] */
-    };
-    free(pollfds);
-  }
-
-  struct timeval tp;
-  int res = libusb_get_next_timeout(NULL, &tp);
-  if (res == 1) {
-    /* There is a timeout */
-    x = caml_alloc_tuple(1) /* [Some timeout] */;
-    Store_field(x, 0, copy_double((double) tp.tv_sec + (double) tp.tv_usec / 1e6));
-    result = caml_alloc_tuple(3);
-    Store_field(result, 0, lr);
-    Store_field(result, 1, lw);
-    Store_field(result, 2, x);
-    CAMLreturn(result);
-  }
-
-  /* Something bad happen */
-  if (res != 0) ml_usb_error(res, "get_next_timeout");
-
-  /* There is no timeout */
-  result = caml_alloc_tuple(3);
-  Store_field(result, 0, lr);
-  Store_field(result, 1, lw);
-  Store_field(result, 2, Val_int(0) /* [None] */);
-  CAMLreturn(result);
 }
 
 /* +-----------------------------------------------------------------+

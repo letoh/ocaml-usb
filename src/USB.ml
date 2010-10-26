@@ -153,8 +153,6 @@ external ml_usb_set_configuration : device_handle -> configuration -> unit = "ml
 external ml_usb_kernel_driver_active : device_handle -> interface -> bool = "ml_usb_kernel_driver_active"
 external ml_usb_detach_kernel_driver : device_handle -> interface -> unit = "ml_usb_detach_kernel_driver"
 external ml_usb_attach_kernel_driver : device_handle -> interface -> unit = "ml_usb_attach_kernel_driver"
-external ml_usb_handle_events : unit -> unit = "ml_usb_handle_events"
-external ml_usb_collect_sources : Unix.file_descr list -> Unix.file_descr list -> Unix.file_descr list * Unix.file_descr list * float option = "ml_usb_collect_sources"
 external ml_usb_bulk_recv : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_bulk_recv"
 external ml_usb_bulk_send : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_bulk_send"
 external ml_usb_interrupt_recv : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_interrupt_recv"
@@ -169,16 +167,6 @@ external ml_usb_set_interface_alt_setting : device_handle -> interface -> int ->
 external ml_usb_clear_halt : device_handle -> endpoint -> unit = "ml_usb_clear_halt"
 
 (* +-----------------------------------------------------------------+
-   | Event-loop integration                                          |
-   +-----------------------------------------------------------------+ *)
-
-let filter_select now select set_r set_w set_e timeout =
-  let set_r, set_w, timeout' = ml_usb_collect_sources set_r set_w in
-  let res = select set_r set_w set_e (Lwt_main.min_timeout timeout timeout') in
-  ml_usb_handle_events ();
-  res
-
-(* +-----------------------------------------------------------------+
    | Initialization                                                  |
    +-----------------------------------------------------------------+ *)
 
@@ -186,9 +174,7 @@ let filter_select now select set_r set_w set_e timeout =
    doing anything: *)
 let init = lazy(
   ml_usb_init ();
-  let hook = Lwt_sequence.add_l filter_select Lwt_main.select_filters in
-  let exit = lazy(Lwt_sequence.remove hook;
-                  ml_usb_exit ()) in
+  let exit = lazy(ml_usb_exit ()) in
   at_exit (fun _ -> Lazy.force exit)
 )
 
