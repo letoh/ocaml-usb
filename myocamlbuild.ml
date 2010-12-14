@@ -1,228 +1,508 @@
 (*
  * myocamlbuild.ml
  * ---------------
- * Copyright : (c) 2008, Jeremie Dimino <jeremie@dimino.org>
+ * Copyright : (c) 2010, Jeremie Dimino <jeremie@dimino.org>
  * Licence   : BSD3
  *
  * This file is a part of ocaml-usb.
  *)
 
-open Printf
+(* OASIS_START *)
+(* DO NOT EDIT (digest: 1dbefdd9576b68ddd14ed8e8a2a83836) *)
+module OASISGettext = struct
+# 21 "/home/dim/sources/oasis/src/oasis/OASISGettext.ml"
+  
+  let ns_ str = 
+    str
+  
+  let s_ str = 
+    str
+  
+  let f_ (str : ('a, 'b, 'c, 'd) format4) =
+    str
+  
+  let fn_ fmt1 fmt2 n =
+    if n = 1 then
+      fmt1^^""
+    else
+      fmt2^^""
+  
+  let init = 
+    []
+  
+end
+
+module OASISExpr = struct
+# 21 "/home/dim/sources/oasis/src/oasis/OASISExpr.ml"
+  
+  
+  
+  open OASISGettext
+  
+  type test = string 
+  
+  type flag = string 
+  
+  type t =
+    | EBool of bool
+    | ENot of t
+    | EAnd of t * t
+    | EOr of t * t
+    | EFlag of flag
+    | ETest of test * string
+    
+  
+  type 'a choices = (t * 'a) list 
+  
+  let eval var_get t =
+    let rec eval' = 
+      function
+        | EBool b ->
+            b
+  
+        | ENot e -> 
+            not (eval' e)
+  
+        | EAnd (e1, e2) ->
+            (eval' e1) && (eval' e2)
+  
+        | EOr (e1, e2) -> 
+            (eval' e1) || (eval' e2)
+  
+        | EFlag nm ->
+            let v =
+              var_get nm
+            in
+              assert(v = "true" || v = "false");
+              (v = "true")
+  
+        | ETest (nm, vl) ->
+            let v =
+              var_get nm
+            in
+              (v = vl)
+    in
+      eval' t
+  
+  let choose ?printer ?name var_get lst =
+    let rec choose_aux = 
+      function
+        | (cond, vl) :: tl ->
+            if eval var_get cond then 
+              vl 
+            else
+              choose_aux tl
+        | [] ->
+            let str_lst = 
+              if lst = [] then
+                s_ "<empty>"
+              else
+                String.concat 
+                  (s_ ", ")
+                  (List.map
+                     (fun (cond, vl) ->
+                        match printer with
+                          | Some p -> p vl
+                          | None -> s_ "<no printer>")
+                     lst)
+            in
+              match name with 
+                | Some nm ->
+                    failwith
+                      (Printf.sprintf 
+                         (f_ "No result for the choice list '%s': %s")
+                         nm str_lst)
+                | None ->
+                    failwith
+                      (Printf.sprintf
+                         (f_ "No result for a choice list: %s")
+                         str_lst)
+    in
+      choose_aux (List.rev lst)
+  
+end
+
+
+module BaseEnvLight = struct
+# 21 "/home/dim/sources/oasis/src/base/BaseEnvLight.ml"
+  
+  module MapString = Map.Make(String)
+  
+  type t = string MapString.t
+  
+  let default_filename =
+    Filename.concat 
+      (Sys.getcwd ())
+      "setup.data"
+  
+  let load ?(allow_empty=false) ?(filename=default_filename) () =
+    if Sys.file_exists filename then
+      begin
+        let chn =
+          open_in_bin filename
+        in
+        let st =
+          Stream.of_channel chn
+        in
+        let line =
+          ref 1
+        in
+        let st_line = 
+          Stream.from
+            (fun _ ->
+               try
+                 match Stream.next st with 
+                   | '\n' -> incr line; Some '\n'
+                   | c -> Some c
+               with Stream.Failure -> None)
+        in
+        let lexer = 
+          Genlex.make_lexer ["="] st_line
+        in
+        let rec read_file mp =
+          match Stream.npeek 3 lexer with 
+            | [Genlex.Ident nm; Genlex.Kwd "="; Genlex.String value] ->
+                Stream.junk lexer; 
+                Stream.junk lexer; 
+                Stream.junk lexer;
+                read_file (MapString.add nm value mp)
+            | [] ->
+                mp
+            | _ ->
+                failwith
+                  (Printf.sprintf
+                     "Malformed data file '%s' line %d"
+                     filename !line)
+        in
+        let mp =
+          read_file MapString.empty
+        in
+          close_in chn;
+          mp
+      end
+    else if allow_empty then
+      begin
+        MapString.empty
+      end
+    else
+      begin
+        failwith 
+          (Printf.sprintf 
+             "Unable to load environment, the file '%s' doesn't exist."
+             filename)
+      end
+  
+  let var_get name env =
+    let rec var_expand str =
+      let buff =
+        Buffer.create ((String.length str) * 2)
+      in
+        Buffer.add_substitute 
+          buff
+          (fun var -> 
+             try 
+               var_expand (MapString.find var env)
+             with Not_found ->
+               failwith 
+                 (Printf.sprintf 
+                    "No variable %s defined when trying to expand %S."
+                    var 
+                    str))
+          str;
+        Buffer.contents buff
+    in
+      var_expand (MapString.find name env)
+  
+  let var_choose lst env = 
+    OASISExpr.choose
+      (fun nm -> var_get nm env)
+      lst
+end
+
+
+module MyOCamlbuildFindlib = struct
+# 21 "/home/dim/sources/oasis/src/plugins/ocamlbuild/MyOCamlbuildFindlib.ml"
+  
+  (** OCamlbuild extension, copied from 
+    * http://brion.inria.fr/gallium/index.php/Using_ocamlfind_with_ocamlbuild
+    * by N. Pouillard and others
+    *
+    * Updated on 2009/02/28
+    *
+    * Modified by Sylvain Le Gall 
+    *)
+  open Ocamlbuild_plugin
+  
+  (* these functions are not really officially exported *)
+  let run_and_read = 
+    Ocamlbuild_pack.My_unix.run_and_read
+  
+  let blank_sep_strings = 
+    Ocamlbuild_pack.Lexers.blank_sep_strings
+  
+  let split s ch =
+    let x = 
+      ref [] 
+    in
+    let rec go s =
+      let pos = 
+        String.index s ch 
+      in
+        x := (String.before s pos)::!x;
+        go (String.after s (pos + 1))
+    in
+      try
+        go s
+      with Not_found -> !x
+  
+  let split_nl s = split s '\n'
+  
+  let before_space s =
+    try
+      String.before s (String.index s ' ')
+    with Not_found -> s
+  
+  (* this lists all supported packages *)
+  let find_packages () =
+    List.map before_space (split_nl & run_and_read "ocamlfind list")
+  
+  (* this is supposed to list available syntaxes, but I don't know how to do it. *)
+  let find_syntaxes () = ["camlp4o"; "camlp4r"]
+  
+  (* ocamlfind command *)
+  let ocamlfind x = S[A"ocamlfind"; x]
+  
+  let dispatch =
+    function
+      | Before_options ->
+          (* by using Before_options one let command line options have an higher priority *)
+          (* on the contrary using After_options will guarantee to have the higher priority *)
+          (* override default commands by ocamlfind ones *)
+          Options.ocamlc     := ocamlfind & A"ocamlc";
+          Options.ocamlopt   := ocamlfind & A"ocamlopt";
+          Options.ocamldep   := ocamlfind & A"ocamldep";
+          Options.ocamldoc   := ocamlfind & A"ocamldoc";
+          Options.ocamlmktop := ocamlfind & A"ocamlmktop"
+                                  
+      | After_rules ->
+          
+          (* When one link an OCaml library/binary/package, one should use -linkpkg *)
+          flag ["ocaml"; "link"; "program"] & A"-linkpkg";
+          
+          (* For each ocamlfind package one inject the -package option when
+           * compiling, computing dependencies, generating documentation and
+           * linking. *)
+          List.iter 
+            begin fun pkg ->
+              flag ["ocaml"; "compile";  "pkg_"^pkg] & S[A"-package"; A pkg];
+              flag ["ocaml"; "ocamldep"; "pkg_"^pkg] & S[A"-package"; A pkg];
+              flag ["ocaml"; "doc";      "pkg_"^pkg] & S[A"-package"; A pkg];
+              flag ["ocaml"; "link";     "pkg_"^pkg] & S[A"-package"; A pkg];
+              flag ["ocaml"; "infer_interface"; "pkg_"^pkg] & S[A"-package"; A pkg];
+            end 
+            (find_packages ());
+  
+          (* Like -package but for extensions syntax. Morover -syntax is useless
+           * when linking. *)
+          List.iter begin fun syntax ->
+          flag ["ocaml"; "compile";  "syntax_"^syntax] & S[A"-syntax"; A syntax];
+          flag ["ocaml"; "ocamldep"; "syntax_"^syntax] & S[A"-syntax"; A syntax];
+          flag ["ocaml"; "doc";      "syntax_"^syntax] & S[A"-syntax"; A syntax];
+          flag ["ocaml"; "infer_interface"; "syntax_"^syntax] & S[A"-syntax"; A syntax];
+          end (find_syntaxes ());
+  
+          (* The default "thread" tag is not compatible with ocamlfind.
+           * Indeed, the default rules add the "threads.cma" or "threads.cmxa"
+           * options when using this tag. When using the "-linkpkg" option with
+           * ocamlfind, this module will then be added twice on the command line.
+           *                        
+           * To solve this, one approach is to add the "-thread" option when using
+           * the "threads" package using the previous plugin.
+           *)
+          flag ["ocaml"; "pkg_threads"; "compile"] (S[A "-thread"]);
+          flag ["ocaml"; "pkg_threads"; "link"] (S[A "-thread"]);
+          flag ["ocaml"; "pkg_threads"; "infer_interface"] (S[A "-thread"])
+  
+      | _ -> 
+          ()
+  
+end
+
+module MyOCamlbuildBase = struct
+# 21 "/home/dim/sources/oasis/src/plugins/ocamlbuild/MyOCamlbuildBase.ml"
+  
+  (** Base functions for writing myocamlbuild.ml
+      @author Sylvain Le Gall
+    *)
+  
+  
+  
+  open Ocamlbuild_plugin
+  
+  type dir = string 
+  type file = string 
+  type name = string 
+  type tag = string 
+  
+# 55 "/home/dim/sources/oasis/src/plugins/ocamlbuild/MyOCamlbuildBase.ml"
+  
+  type t =
+      {
+        lib_ocaml: (name * dir list) list;
+        lib_c:     (name * dir * file list) list; 
+        flags:     (tag list * (spec OASISExpr.choices)) list;
+      } 
+  
+  let env_filename =
+    Pathname.basename 
+      BaseEnvLight.default_filename
+  
+  let dispatch_combine lst =
+    fun e ->
+      List.iter 
+        (fun dispatch -> dispatch e)
+        lst 
+  
+  let dispatch t e = 
+    let env = 
+      BaseEnvLight.load 
+        ~filename:env_filename 
+        ~allow_empty:true
+        ()
+    in
+      match e with 
+        | Before_options ->
+            let no_trailing_dot s =
+              if String.length s >= 1 && s.[0] = '.' then
+                String.sub s 1 ((String.length s) - 1)
+              else
+                s
+            in
+              List.iter
+                (fun (opt, var) ->
+                   try 
+                     opt := no_trailing_dot (BaseEnvLight.var_get var env)
+                   with Not_found ->
+                     Printf.eprintf "W: Cannot get variable %s" var)
+                [
+                  Options.ext_obj, "ext_obj";
+                  Options.ext_lib, "ext_lib";
+                  Options.ext_dll, "ext_dll";
+                ]
+  
+        | After_rules -> 
+            (* Declare OCaml libraries *)
+            List.iter 
+              (function
+                 | lib, [] ->
+                     ocaml_lib lib;
+                 | lib, dir :: tl ->
+                     ocaml_lib ~dir:dir lib;
+                     List.iter 
+                       (fun dir -> 
+                          flag 
+                            ["ocaml"; "use_"^lib; "compile"] 
+                            (S[A"-I"; P dir]))
+                       tl)
+              t.lib_ocaml;
+  
+            (* Declare C libraries *)
+            List.iter
+              (fun (lib, dir, headers) ->
+                   (* Handle C part of library *)
+                   flag ["link"; "library"; "ocaml"; "byte"; "use_lib"^lib]
+                     (S[A"-dllib"; A("-l"^lib); A"-cclib"; A("-l"^lib)]);
+  
+                   flag ["link"; "library"; "ocaml"; "native"; "use_lib"^lib]
+                     (S[A"-cclib"; A("-l"^lib)]);
+                        
+                   flag ["link"; "program"; "ocaml"; "byte"; "use_lib"^lib]
+                     (S[A"-dllib"; A("dll"^lib)]);
+  
+                   (* When ocaml link something that use the C library, then one
+                      need that file to be up to date.
+                    *)
+                   dep  ["link"; "ocaml"; "use_lib"^lib] 
+                     [dir/"lib"^lib^"."^(!Options.ext_lib)];
+  
+                   (* TODO: be more specific about what depends on headers *)
+                   (* Depends on .h files *)
+                   dep ["compile"; "c"] 
+                     headers;
+  
+                   (* Setup search path for lib *)
+                   flag ["link"; "ocaml"; "use_"^lib] 
+                     (S[A"-I"; P(dir)]);
+              )
+              t.lib_c;
+  
+              (* Add flags *)
+              List.iter
+              (fun (tags, cond_specs) ->
+                 let spec = 
+                   BaseEnvLight.var_choose cond_specs env
+                 in
+                   flag tags & spec)
+              t.flags
+        | _ -> 
+            ()
+  
+  let dispatch_default t =
+    dispatch_combine 
+      [
+        dispatch t;
+        MyOCamlbuildFindlib.dispatch;
+      ]
+  
+end
+
+
+open Ocamlbuild_plugin;;
+let package_default =
+  {
+     MyOCamlbuildBase.lib_ocaml = [("src/usb", ["src"])];
+     lib_c = [("usb", "src", [])];
+     flags = [];
+     }
+  ;;
+
+let dispatch_default = MyOCamlbuildBase.dispatch_default package_default;;
+
+(* OASIS_STOP *)
+
 open Ocamlbuild_plugin
 
-(* +-----------------------------------------------------------------+
-   | Configuration                                                   |
-   +-----------------------------------------------------------------+ *)
+let pkg_config flags package =
+  with_temp_file "lwt" "pkg-config"
+    (fun tmp ->
+       Command.execute ~quiet:true & Cmd(S[A "pkg-config"; A("--" ^ flags); A package; Sh ">"; A tmp]);
+       List.map (fun arg -> A arg) (string_list_of_file tmp))
 
-let try_exec command =
-  try
-    let _ = run_and_read command in
-    true
-  with _ ->
-    false
+let define_c_library ~name ~c_name =
+  let tag = Printf.sprintf "use_%s" name in
+
+  (* Get flags for using pkg-config: *)
+  let opt = pkg_config "cflags" c_name and lib = pkg_config "libs" c_name in
+
+  (* Add flags for linking with the C library: *)
+  flag ["ocamlmklib"; "c"; tag] & S lib;
+
+  (* C stubs using the C library must be compiled with the library
+     specifics flags: *)
+  flag ["c"; "compile"; tag] & S(List.map (fun arg -> S[A"-ccopt"; arg]) opt);
+
+  (* OCaml libraries must depends on the C library: *)
+  flag ["link"; "ocaml"; tag] & S(List.map (fun arg -> S[A"-cclib"; arg]) lib)
 
 let () =
-  if not (try_exec "ocamlfind printconf") then begin
-    prerr_endline "ocamlfind is not available, please install it";
-    exit 1
-  end
-
-let have_native = try_exec "ocamlfind ocamlopt -version"
-
-(* +-----------------------------------------------------------------+
-   | Ocamlfind                                                       |
-   +-----------------------------------------------------------------+ *)
-
-(* Packages we want to use in the program *)
-let packages = [
-  (* The camlp4 packages is just used to tell that we want to
-     preprocess a file with camlp4 *)
-  "camlp4";
-
-  (* Handling of quotations of the form <:expr< >>, in original and
-     revised syntax *)
-  "camlp4.quotations.o";
-  "camlp4.quotations.r";
-
-  (* the "EXTEND ... END" syntax extension *)
-  "camlp4.extend";
-
-  (* The camlp4 library *)
-  "camlp4.lib";
-
-  (* Macro *)
-  "camlp4.macro";
-
-  (* Other packages we want to use *)
-  "lwt";
-  "lwt.syntax";
-  "lwt.preemptive";
-  "str";
-  "xml-light";
-]
-
-(* List of syntaxes *)
-let syntaxes = [
-  (* Original syntax *)
-  "camlp4o";
-
-  (* Revised syntax *)
-  "camlp4r"
-]
-
-(* +-----------------------------------------------------------------+
-   | Utils                                                           |
-   +-----------------------------------------------------------------+ *)
-
-(* Given the tag [tag] add the command line options [f] to all stages
-   of compilatiopn but linking *)
-let flag_all_stages_except_link tag f =
-  flag ["ocaml"; "compile"; tag] f;
-  flag ["ocaml"; "ocamldep"; tag] f;
-  flag ["ocaml"; "doc"; tag] f
-
-(* Same as [flag_all_stages_except_link] but also flag the linking
-   stage *)
-let flag_all_stages tag f =
-  flag_all_stages_except_link tag f;
-  flag ["ocaml"; "link"; tag] f
-
-(* Define a internal library with required depency. File using it
-   (like samples) must be tagged with "use_name".
-
-   For example if the library sources are in the directory "src", and
-   samples in directory "samples", you can have in myocamlbuild.ml:
-
-     define_lib ~dir:"src" "foo"
-
-   and in the _tags file:
-
-     <samples/**/*>: use_foo
-*)
-let define_lib ?dir name =
-  ocaml_lib ?dir name;
-  dep ["ocaml"; "byte"; "use_" ^ name] [name ^ ".cma"];
-  dep ["ocaml"; "native"; "use_" ^ name] [name ^ ".cmxa"]
-
-let substitute env text =
-  List.fold_left (fun text (patt, repl) -> String.subst patt repl text) text env
-
-let get_version _ =
-  match string_list_of_file "VERSION" with
-    | version :: _ -> version
-    | _ -> failwith "invalid VERSION file"
-
-let _ =
-  dispatch begin function
-    | Before_options ->
-
-        (* override default commands by ocamlfind ones *)
-        let ocamlfind x = S[A"ocamlfind"; A x] in
-        Options.ocamlc   := ocamlfind "ocamlc";
-        Options.ocamlopt := ocamlfind "ocamlopt";
-        Options.ocamldep := ocamlfind "ocamldep";
-        Options.ocamldoc := S[A"ocamlfind"; A"ocamldoc"; A"-hide-warnings"]
-
-    | Before_rules ->
-
-        (* +---------------------------------------------------------+
-           | Shared libraries                                        |
-           +---------------------------------------------------------+ *)
-
-        rule "shared libraries (cmxs)"
-          ~dep:"%.cmxa" ~prod:"%.cmxs"
-          (fun env _ -> Cmd(S[!(Options.ocamlopt); A"-cclib"; A"-L."; A"-shared"; A"-linkall"; A(env "%.cmxa"); A"-o"; A(env "%.cmxs")]))
-
-    | After_rules ->
-
-        (* +---------------------------------------------------------+
-           | Virtual targets                                         |
-           +---------------------------------------------------------+ *)
-
-        let virtual_rule name deps =
-          rule name ~stamp:name ~deps (fun _ _ -> Nop)
-        in
-
-        virtual_rule "all" & "META" :: if have_native then ["usb.cma"; "usb.cmxa"; "usb.cmxs"] else ["usb.cma"];
-        virtual_rule "byte" & ["META"; "usb.cma"];
-        virtual_rule "native" & ["META"; "usb.cmxa"; "usb.cmxs"];
-
-        (* +---------------------------------------------------------+
-           | Ocamlfind stuff                                         |
-           +---------------------------------------------------------+ *)
-
-        (* When one link an OCaml binary, one should use -linkpkg *)
-        flag ["ocaml"; "link"; "program"] & A"-linkpkg";
-
-        (* For each ocamlfind package one inject the -package option
-           when compiling, computing dependencies, generating
-           documentation and linking. *)
-        List.iter
-          (fun package -> flag_all_stages ("pkg_" ^ package) (S[A"-package"; A package]))
-          packages;
-
-        (* Like -package but for extensions syntax. Morover -syntax is
-           useless when linking. *)
-        List.iter
-          (fun syntax -> flag_all_stages_except_link ("syntax_" ^ syntax) (S[A"-syntax"; A syntax]))
-          syntaxes;
-
-        (* +---------------------------------------------------------+
-           | C stubs                                                 |
-           +---------------------------------------------------------+ *)
-
-        flag ["c"; "compile"] & S[A"-ccopt"; A"-Wall"];
-
-        (* Search 'pkg-config': *)
-        let pkg_config = try
-          Command.search_in_path "pkg-config"
-        with
-            Not_found ->
-              failwith "The program ``pkg-config'' is required but not found, please intall it"
-        in
-        let get_args cmd =
-          with_temp_file "ocaml-usb" "pkg-config"
-            (fun tmp ->
-               Command.execute ~quiet:true & Cmd(S[cmd; Sh ">"; A tmp]);
-               List.map (fun arg -> A arg) (string_list_of_file tmp))
-        in
-
-        (* Get flags for libusb-1.0 using pkg-config: *)
-        let usb_opt = get_args & S[A pkg_config; A"--cflags"; A"libusb-1.0"]
-        and usb_lib = get_args & S[A pkg_config; A"--libs"; A"libusb-1.0"] in
-
-        (* Dependency for automatic compliation of C stubs: *)
-        dep ["link"; "ocaml"; "use_stubs"] ["libusb_stubs.a"];
-
-        (* Link code using C stubs with '-lusb_stubs': *)
-        flag ["link"; "library"; "ocaml"; "use_stubs"] & S[A"-cclib"; A"-lusb_stubs"];
-
-        (* For libraries add also a '-dllib' option for automatic
-           addition of '-cclib -lusb_stubs' when using the library: *)
-        flag ["link"; "library"; "ocaml"; "byte"; "use_stubs"] & S[A"-dllib"; A"-lusb_stubs"];
-
-        (* Add flags for linking with the C library libusb: *)
-        flag ["ocamlmklib"; "c"; "use_libusb"] & S usb_lib;
-
-        let ccopt = S(List.map (fun arg -> S[A"-ccopt"; arg]) usb_opt)
-        and cclib = S(List.map (fun arg -> S[A"-cclib"; arg]) usb_lib) in
-
-        (* C stubs using libusb must be compiled with libusb specifics
-           flags: *)
-        flag ["c"; "compile"; "use_libusb"] & ccopt;
-
-        (* OCaml llibraries must depends on the C library libusb: *)
-        flag ["link"; "ocaml"; "use_libusb"] & cclib;
-
-        (* +---------------------------------------------------------+
-           | Other                                                   |
-           +---------------------------------------------------------+ *)
-
-        (* Generation of "META" *)
-        rule "META" ~deps:["META.in"; "VERSION"] ~prod:"META"
-          (fun _ _ ->
-             Echo([substitute [("@VERSION@", get_version ())]
-                     (read_file "META.in")], "META"))
-
-    | _ -> ()
-  end
+  dispatch
+    (fun hook ->
+       dispatch_default hook;
+       match hook with
+         | Before_options ->
+             Options.make_links := false
+         | After_rules ->
+             define_c_library ~name:"libusb" ~c_name:"libusb-1.0";
+             flag ["c"; "compile"; "use_libusb"] & S[A"-package"; A"lwt"]
+         | _ ->
+             ())

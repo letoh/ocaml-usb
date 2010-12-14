@@ -1,0 +1,32 @@
+OASISFormat: 0.1
+Name: ocaml-usb
+Version: 1.0.0
+LicenseFile: COPYING
+License: BSD3
+Authors: Jérémie Dimino
+Homepage: http://ocaml-usb.forge.ocamlcore.org/
+BuildTools: ocamlbuild
+Plugins: DevFiles (0.2), META (0.2)
+Synopsis: Bindings for libusb-1.0
+
+Library "usb"
+  FindlibName: usb
+  Path: src
+  Modules: USB
+  BuildDepends: lwt.unix, lwt.syntax
+  XMETADescription: Bindings for libusb-1.0
+  CSources: usb_stubs.c
+
+Document "ocaml-usb-api"
+  Title: API reference for ocaml-usb
+  Type: ocamlbuild (0.2)
+  Install: true
+  InstallDir: $htmldir/api
+  BuildTools: ocamldoc
+  XOCamlbuildPath: ./
+  XOCamlbuildLibraries: usb
+
+SourceRepository head
+  Type: darcs
+  Location: http://darcs.ocamlcore.org/repos/ocaml-usb
+  Browser: http://darcs.ocamlcore.org/cgi-bin/darcsweb.cgi?r=ocaml-usb;a=summary

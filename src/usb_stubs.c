@@ -13,12 +13,14 @@
 #include <caml/alloc.h>
 #include <caml/fail.h>
 #include <caml/callback.h>
+#include <caml/signals.h>
 #include <libusb.h>
 #include <poll.h>
 #include <string.h>
 #include <stdio.h>
 #include <ev.h>
 #include <sys/time.h>
+#include <lwt_unix.h>
 
 /* +-----------------------------------------------------------------+
    | Errors                                                          |
@@ -627,6 +629,8 @@ static value ml_usb_iso_result(struct libusb_transfer *transfer)
 /* Handler for device-to-host transfers: */
 static void ml_usb_handle_recv(struct libusb_transfer *transfer)
 {
+  LWT_UNIX_CHECK;
+
   CAMLparam0();
   CAMLlocal2(meta, result);
 
@@ -666,6 +670,8 @@ static void ml_usb_handle_recv(struct libusb_transfer *transfer)
 /* Handler for host-to-device transfers: */
 void ml_usb_handle_send(struct libusb_transfer *transfer)
 {
+  LWT_UNIX_CHECK;
+
   CAMLparam0();
   CAMLlocal2(caml_func, result);
 

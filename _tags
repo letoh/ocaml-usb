@@ -1,26 +1,13 @@
-# -*- conf -*-
+<src/*.ml>: syntax_camlp4o
+<src/*>: use_libusb
 
-# +-------------------------+
-# | External ocaml packages |
-# +-------------------------+
-
-<src/*.ml>: syntax_camlp4o, pkg_lwt.syntax
-<src/*>: pkg_lwt.preemptive, thread
-
-# +---------+
-# | C stubs |
-# +---------+
-
-# Tags description:
-#
-# * "use_stubs" is for files using the stubs for libusb,
-#   i.e. "src/usb_stubs.c"
-#
-# * "use_libusb" is for files using the C library "libusb-1.0"
-
-# The ocaml library uses C stubs and must depends on the C library:
-<usb.*>: use_stubs, use_libusb
-
-# C stubs use the C library libusb:
-<libusb_stubs.*>: use_libusb
-<src/usb_stubs.*>: use_libusb
+# OASIS_START
+# DO NOT EDIT (digest: 388ba22bdc72673a7e919a129799750d)
+# Library usb
+"src": include
+<src/usb.{cma,cmxa}>: use_libusb
+<src/*.ml{,i}>: pkg_lwt.unix
+<src/*.ml{,i}>: pkg_lwt.syntax
+"src/usb_stubs.c": pkg_lwt.unix
+"src/usb_stubs.c": pkg_lwt.syntax
+# OASIS_STOP

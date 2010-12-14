@@ -1,65 +1,44 @@
-# Makefile
-# --------
-# Copyright : (c) 2009, Jeremie Dimino <jeremie@dimino.org>
-# Licence   : BSD3
-#
-# This file is a part of ocaml-usb.
+# OASIS_START
+# DO NOT EDIT (digest: bc1e05bfc8b39b664f29dae8dbd3ebbb)
 
-# +------------------------------------------------------------------+
-# | Configuration                                                    |
-# +------------------------------------------------------------------+
+SETUP = ocaml setup.ml
 
-# Tools
-OCAMLFIND := ocamlfind
-OCAMLBUILD := ocamlbuild
+build: setup.data
+	$(SETUP) -build $(BUILDFLAGS)
 
-# Use classic-display when compiling under a terminal which does not
-# support ANSI sequence:
-ifeq ($(TERM),dumb)
-OCAMLBUILD += -classic-display
-endif
+doc: setup.data build
+	$(SETUP) -doc $(DOCFLAGS)
 
-# Avoid compilation of native plugin if ocamlopt is not available
-ifeq ($(shell if which ocamlopt >/dev/null; then echo yes; fi),)
-OCAMLBUILD += -byte-plugin
-endif
+test: setup.data build
+	$(SETUP) -test $(TESTFLAGS)
 
-# +------------------------------------------------------------------+
-# | Rules                                                            |
-# +------------------------------------------------------------------+
+all: 
+	$(SETUP) -all $(ALLFLAGS)
 
-.PHONY: all
-all:
-	$(OCAMLBUILD) all
+install: setup.data
+	$(SETUP) -install $(INSTALLFLAGS)
 
-.PHONY: doc
-doc:
-	$(OCAMLBUILD) usb.docdir/index.html
+uninstall: setup.data
+	$(SETUP) -uninstall $(UNINSTALLFLAGS)
+
+reinstall: setup.data
+	$(SETUP) -reinstall $(REINSTALLFLAGS)
+
+clean: 
+	$(SETUP) -clean $(CLEANFLAGS)
+
+distclean: 
+	$(SETUP) -distclean $(DISTCLEANFLAGS)
+
+setup.data:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+.PHONY: build doc test all install uninstall reinstall clean distclean configure
+
+# OASIS_STOP
+
+-include setup.data
+dist:
+	DARCS_REPO=`pwd` darcs dist --dist-name $(pkg_name)-$(pkg_version)
 
 .PHONY: dist
-dist:
-	DARCS_REPO=$(PWD) darcs dist --dist-name ocaml-usb-`head -n 1 VERSION`
-
-.PHONY: install
-install:
-	$(OCAMLFIND) install usb _build/META \
-	  $(wildcard _build/src/*.mli) \
-	  $(wildcard _build/src/*.cmi) \
-	  $(wildcard _build/src/*.cmx) \
-	  $(wildcard _build/*.a) \
-	  $(wildcard _build/*.cma) \
-	  $(wildcard _build/*.cmxa) \
-	  $(wildcard _build/*.cmxs) \
-	  $(wildcard _build/*.so)
-
-.PHONY: uninstall
-uninstall:
-	$(OCAMLFIND) remove usb
-
-.PHONY: reinstall
-reinstall: uninstall install
-
-.PHONY: clean
-clean:
-	$(OCAMLBUILD) -clean
-	cd examples && $(MAKE) clean

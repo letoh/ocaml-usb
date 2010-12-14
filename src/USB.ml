@@ -365,7 +365,7 @@ let handle_result func_name w = function
 
 let make_timeout = function
   | None -> 0
-  | Some t -> truncate (t *. 1000.0)
+  | Some t -> Pervasives.truncate (t *. 1000.0)
 
 let transfer name func ~handle ~endpoint ?timeout buffer offset length =
   check_handle handle;
