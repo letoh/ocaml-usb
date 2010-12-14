@@ -146,10 +146,6 @@ external ml_usb_open : device -> device_handle = "ml_usb_open"
 external ml_usb_open_device_with_vid_pid : int -> int -> device_handle option = "ml_usb_open_device_with_vid_pid"
 external ml_usb_close : device_handle -> unit = "ml_usb_close"
 external ml_usb_get_device : device_handle -> device = "ml_usb_get_device"
-external ml_usb_claim_interface : device_handle -> interface -> unit = "ml_usb_claim_interface"
-external ml_usb_release_interface : device_handle -> interface -> unit = "ml_usb_release_interface"
-external ml_usb_get_configuration : device_handle -> configuration = "ml_usb_get_configuration"
-external ml_usb_set_configuration : device_handle -> configuration -> unit = "ml_usb_set_configuration"
 external ml_usb_kernel_driver_active : device_handle -> interface -> bool = "ml_usb_kernel_driver_active"
 external ml_usb_detach_kernel_driver : device_handle -> interface -> unit = "ml_usb_detach_kernel_driver"
 external ml_usb_attach_kernel_driver : device_handle -> interface -> unit = "ml_usb_attach_kernel_driver"
@@ -161,10 +157,35 @@ external ml_usb_control_recv : device_handle * endpoint * int * string * int * i
 external ml_usb_control_send : device_handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int -> transfer = "ml_usb_control_send"
 external ml_usb_iso_recv : device_handle * endpoint * int * string * int * int * (int result list result -> unit) * int * int list -> transfer = "ml_usb_iso_recv"
 external ml_usb_iso_send : device_handle * endpoint * int * string * int * int * (int result list result -> unit) * int * int list -> transfer = "ml_usb_iso_send"
-external ml_usb_reset_device : device_handle -> unit = "ml_usb_reset_device"
 external ml_usb_cancel_transfer : transfer -> unit = "ml_usb_cancel_transfer"
-external ml_usb_set_interface_alt_setting : device_handle -> interface -> int -> unit = "ml_usb_set_interface_alt_setting"
-external ml_usb_clear_halt : device_handle -> endpoint -> unit = "ml_usb_clear_halt"
+
+external ml_usb_claim_interface_job : device_handle -> interface -> [ `claim_interface ] job = "ml_usb_claim_interface_job"
+external ml_usb_claim_interface_result : [ `claim_interface ] job -> unit = "ml_usb_claim_interface_result"
+external ml_usb_claim_interface_free : [ `claim_interface ] job -> unit = "ml_usb_claim_interface_free"
+
+external ml_usb_release_interface_job : device_handle -> interface -> [ `release_interface ] job = "ml_usb_release_interface_job"
+external ml_usb_release_interface_result : [ `release_interface ] job -> unit = "ml_usb_release_interface_result"
+external ml_usb_release_interface_free : [ `release_interface ] job -> unit = "ml_usb_release_interface_free"
+
+external ml_usb_get_configuration_job : device_handle -> [ `get_configuration ] job = "ml_usb_get_configuration_job"
+external ml_usb_get_configuration_result : [ `get_configuration ] job -> configuration = "ml_usb_get_configuration_result"
+external ml_usb_get_configuration_free : [ `get_configuration ] job -> unit = "ml_usb_get_configuration_free"
+
+external ml_usb_set_configuration_job : device_handle -> configuration -> [ `set_configuration ] job = "ml_usb_set_configuration_job"
+external ml_usb_set_configuration_result : [ `set_configuration ] job -> unit = "ml_usb_set_configuration_result"
+external ml_usb_set_configuration_free : [ `set_configuration ] job -> unit = "ml_usb_set_configuration_free"
+
+external ml_usb_set_interface_alt_setting_job : device_handle -> interface -> int -> [ `set_interface_alt_setting ] job = "ml_usb_set_interface_alt_setting_job"
+external ml_usb_set_interface_alt_setting_result : [ `set_interface_alt_setting ] job -> unit = "ml_usb_set_interface_alt_setting_result"
+external ml_usb_set_interface_alt_setting_free : [ `set_interface_alt_setting ] job -> unit = "ml_usb_set_interface_alt_setting_free"
+
+external ml_usb_clear_halt_job : device_handle -> endpoint -> [ `clear_halt ] job = "ml_usb_clear_halt_job"
+external ml_usb_clear_halt_result : [ `clear_halt ] job -> unit = "ml_usb_clear_halt_result"
+external ml_usb_clear_halt_free : [ `clear_halt ] job -> unit = "ml_usb_clear_halt_free"
+
+external ml_usb_reset_device_job : device_handle -> [ `reset_device ] job = "ml_usb_reset_device_job"
+external ml_usb_reset_device_result : [ `reset_device ] job -> unit = "ml_usb_reset_device_result"
+external ml_usb_reset_device_free : [ `reset_device ] job -> unit = "ml_usb_reset_device_free"
 
 (* +-----------------------------------------------------------------+
    | Initialization                                                  |
@@ -205,13 +226,13 @@ let make_handle device_handle = {
 let check_handle handle =
   if handle.state = State_closed then failwith "device handle closed"
 
-let detach handle f =
+let detach handle job result free =
   Lwt_mutex.with_lock handle.mutex
     (fun () ->
        check_handle handle;
        handle.state <- State_detach;
        try_lwt
-         Lwt_preemptive.detach f ()
+         execute_job (job ()) result free
        finally
          if handle.state = State_detach then
            handle.state <- State_ok;
@@ -221,39 +242,75 @@ let get_bus_number = ml_usb_get_bus_number
 let get_device_address = ml_usb_get_device_address
 let get_max_packet_size ~device ~direction ~endpoint = ml_usb_get_max_packet_size device direction endpoint
 let open_device device = make_handle (ml_usb_open device)
+
 let close handle =
   if handle.state <> State_closed then begin
     handle.state <- State_closed;
     ml_usb_close handle.handle
   end
+
 let get_device handle = ml_usb_get_device handle.handle
+
 let claim_interface handle interface =
-  try_lwt
-    ml_usb_claim_interface handle.handle interface;
-    return ()
+  detach
+    handle
+    (fun () -> ml_usb_claim_interface_job handle.handle interface)
+    ml_usb_claim_interface_result
+    ml_usb_claim_interface_free
+
 let release_interface handle interface =
-  detach handle (fun () -> ml_usb_release_interface handle.handle interface)
+  detach
+    handle
+    (fun () -> ml_usb_release_interface_job handle.handle interface)
+    ml_usb_release_interface_result
+    ml_usb_release_interface_free
+
 let kernel_driver_active handle =
   check_handle handle;
   ml_usb_kernel_driver_active handle.handle
+
 let detach_kernel_driver handle =
   check_handle handle;
   ml_usb_detach_kernel_driver handle.handle
+
 let attach_kernel_driver handle =
   check_handle handle;
   ml_usb_attach_kernel_driver handle.handle
+
 let get_configuration handle =
-  try_lwt
-    check_handle handle;
-    return (ml_usb_get_configuration handle.handle)
-let set_configuration handle conf =
-  detach handle (fun () -> ml_usb_set_configuration handle.handle conf)
+  detach
+    handle
+    (fun () -> ml_usb_get_configuration_job handle.handle)
+    ml_usb_get_configuration_result
+    ml_usb_get_configuration_free
+
+let set_configuration handle configuration =
+  detach
+    handle
+    (fun () -> ml_usb_set_configuration_job handle.handle configuration)
+    ml_usb_set_configuration_result
+    ml_usb_set_configuration_free
+
 let set_interface_alt_setting handle interface alt_setting =
-  detach handle (fun () -> ml_usb_set_interface_alt_setting handle.handle interface alt_setting)
+  detach
+    handle
+    (fun () -> ml_usb_set_interface_alt_setting_job handle.handle interface alt_setting)
+    ml_usb_set_interface_alt_setting_result
+    ml_usb_set_interface_alt_setting_free
+
 let clear_halt handle endpoint =
-  detach handle (fun () -> ml_usb_clear_halt handle.handle endpoint)
+  detach
+    handle
+    (fun () -> ml_usb_clear_halt_job handle.handle endpoint)
+    ml_usb_clear_halt_result
+    ml_usb_clear_halt_free
+
 let reset_device handle =
-  detach handle (fun () -> ml_usb_reset_device handle.handle)
+  detach
+    handle
+    (fun () -> ml_usb_reset_device_job handle.handle)
+    ml_usb_reset_device_result
+    ml_usb_reset_device_free
 
 let open_device_with ~vendor_id ~product_id =
   Lazy.force init;

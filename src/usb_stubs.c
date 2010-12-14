@@ -369,20 +369,6 @@ CAMLprim value ml_usb_get_device(value handle)
   CAMLreturn(alloc_device(device));
 }
 
-CAMLprim value ml_usb_claim_interface(value handle, value interface)
-{
-  int res = libusb_claim_interface(Handle_val(handle), Int_val(interface));
-  if (res) ml_usb_error(res, "claim_interface");
-  return Val_unit;
-}
-
-CAMLprim value ml_usb_release_interface(value handle, value interface)
-{
-  int res = libusb_release_interface(Handle_val(handle), Int_val(interface));
-  if (res) ml_usb_error(res, "release_interface");
-  return Val_unit;
-}
-
 CAMLprim value ml_usb_kernel_driver_active(value handle, value interface)
 {
   int res = libusb_kernel_driver_active(Handle_val(handle), Int_val(interface));
@@ -411,39 +397,289 @@ CAMLprim value ml_usb_attach_kernel_driver(value handle, value interface)
   return Val_unit;
 }
 
-CAMLprim value ml_usb_get_configuration(value handle)
+/* +-----------------------------------------------------------------+
+   | JOB: claim_interface                                            |
+   +-----------------------------------------------------------------+ */
+
+struct job_claim_interface {
+  struct lwt_unix_job job;
+  libusb_device_handle *handle;
+  int interface;
+  int result;
+};
+
+#define Job_claim_interface(v) *(struct job_claim_interface**)Data_custom_val(v)
+
+static void worker_claim_interface(struct job_claim_interface *job)
 {
-  int config;
-  int res = libusb_get_configuration(Handle_val(handle), &config);
-  if (res) ml_usb_error(res, "get_configuration");
-  return Val_int(config);
+  job->result = libusb_claim_interface(job->handle, job->interface);
 }
 
-CAMLprim value ml_usb_set_configuration(value handle, value config)
+CAMLprim value ml_usb_claim_interface_job(value val_handle, value val_interface)
 {
-  int res = libusb_set_configuration(Handle_val(handle), Int_val(config));
-  if (res) ml_usb_error(res, "set_configuration");
+  struct job_claim_interface *job = lwt_unix_new(struct job_claim_interface);
+  job->job.worker = (lwt_unix_job_worker)worker_claim_interface;
+  job->handle = Handle_val(val_handle);
+  job->interface = Int_val(val_interface);
   return Val_unit;
 }
 
-CAMLprim value ml_usb_set_interface_alt_setting(value handle, value interface, value alt_setting)
+CAMLprim value ml_usb_claim_interface_result(value val_job)
 {
-  int res = libusb_set_interface_alt_setting(Handle_val(handle), Int_val(interface), Int_val(alt_setting));
-  if (res) ml_usb_error(res, "set_interface_alt_setting");
+  struct job_claim_interface *job = Job_claim_interface(val_job);
+  if (job->result) ml_usb_error(job->result, "claim_interface");
   return Val_unit;
 }
 
-CAMLprim value ml_usb_clear_halt(value handle, value endpoint)
+CAMLprim value ml_usb_claim_interface_free(value val_job)
 {
-  int res = libusb_clear_halt(Handle_val(handle), Int_val(endpoint));
-  if (res) ml_usb_error(res, "clear_halt");
+  struct job_claim_interface *job = Job_claim_interface(val_job);
+  lwt_unix_free_job(&job->job);
   return Val_unit;
 }
 
-CAMLprim value ml_usb_reset_device(value handle)
+/* +-----------------------------------------------------------------+
+   | JOB: release_interface                                          |
+   +-----------------------------------------------------------------+ */
+
+struct job_release_interface {
+  struct lwt_unix_job job;
+  libusb_device_handle *handle;
+  int interface;
+  int result;
+};
+
+#define Job_release_interface(v) *(struct job_release_interface**)Data_custom_val(v)
+
+static void worker_release_interface(struct job_release_interface *job)
 {
-  int res = libusb_reset_device(Handle_val(handle));
-  if (res) ml_usb_error(res, "reset_device");
+  job->result = libusb_release_interface(job->handle, job->interface);
+}
+
+CAMLprim value ml_usb_release_interface_job(value val_handle, value val_interface)
+{
+  struct job_release_interface *job = lwt_unix_new(struct job_release_interface);
+  job->job.worker = (lwt_unix_job_worker)worker_release_interface;
+  job->handle = Handle_val(val_handle);
+  job->interface = Int_val(val_interface);
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_release_interface_result(value val_job)
+{
+  struct job_release_interface *job = Job_release_interface(val_job);
+  if (job->result) ml_usb_error(job->result, "release_interface");
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_release_interface_free(value val_job)
+{
+  struct job_release_interface *job = Job_release_interface(val_job);
+  lwt_unix_free_job(&job->job);
+  return Val_unit;
+}
+
+/* +-----------------------------------------------------------------+
+   | JOB: get_configuration                                          |
+   +-----------------------------------------------------------------+ */
+
+struct job_get_configuration {
+  struct lwt_unix_job job;
+  libusb_device_handle *handle;
+  int configuration;
+  int result;
+};
+
+#define Job_get_configuration(v) *(struct job_get_configuration**)Data_custom_val(v)
+
+static void worker_get_configuration(struct job_get_configuration *job)
+{
+  job->result = libusb_get_configuration(job->handle, &(job->configuration));
+}
+
+CAMLprim value ml_usb_get_configuration_job(value val_handle)
+{
+  struct job_get_configuration *job = lwt_unix_new(struct job_get_configuration);
+  job->job.worker = (lwt_unix_job_worker)worker_get_configuration;
+  job->handle = Handle_val(val_handle);
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_get_configuration_result(value val_job)
+{
+  struct job_get_configuration *job = Job_get_configuration(val_job);
+  if (job->result) ml_usb_error(job->result, "get_configuration");
+  return Val_int(job->configuration);
+}
+
+CAMLprim value ml_usb_get_configuration_free(value val_job)
+{
+  struct job_get_configuration *job = Job_get_configuration(val_job);
+  lwt_unix_free_job(&job->job);
+  return Val_unit;
+}
+
+/* +-----------------------------------------------------------------+
+   | JOB: set_configuration                                          |
+   +-----------------------------------------------------------------+ */
+
+struct job_set_configuration {
+  struct lwt_unix_job job;
+  libusb_device_handle *handle;
+  int configuration;
+  int result;
+};
+
+#define Job_set_configuration(v) *(struct job_set_configuration**)Data_custom_val(v)
+
+static void worker_set_configuration(struct job_set_configuration *job)
+{
+  job->result = libusb_set_configuration(job->handle, job->configuration);
+}
+
+CAMLprim value ml_usb_set_configuration_job(value val_handle, value val_configuration)
+{
+  struct job_set_configuration *job = lwt_unix_new(struct job_set_configuration);
+  job->job.worker = (lwt_unix_job_worker)worker_set_configuration;
+  job->handle = Handle_val(val_handle);
+  job->configuration = Int_val(val_configuration);
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_set_configuration_result(value val_job)
+{
+  struct job_set_configuration *job = Job_set_configuration(val_job);
+  if (job->result) ml_usb_error(job->result, "set_configuration");
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_set_configuration_free(value val_job)
+{
+  struct job_set_configuration *job = Job_set_configuration(val_job);
+  lwt_unix_free_job(&job->job);
+  return Val_unit;
+}
+
+/* +-----------------------------------------------------------------+
+   | JOB: set_interface_alt_setting                                  |
+   +-----------------------------------------------------------------+ */
+
+struct job_set_interface_alt_setting {
+  struct lwt_unix_job job;
+  libusb_device_handle *handle;
+  int interface;
+  int alt_setting;
+  int result;
+};
+
+#define Job_set_interface_alt_setting(v) *(struct job_set_interface_alt_setting**)Data_custom_val(v)
+
+static void worker_set_interface_alt_setting(struct job_set_interface_alt_setting *job)
+{
+  job->result = libusb_set_interface_alt_setting(job->handle, job->interface, job->alt_setting);
+}
+
+CAMLprim value ml_usb_set_interface_alt_setting_job(value val_handle, value val_interface, value val_alt_setting)
+{
+  struct job_set_interface_alt_setting *job = lwt_unix_new(struct job_set_interface_alt_setting);
+  job->job.worker = (lwt_unix_job_worker)worker_set_interface_alt_setting;
+  job->handle = Handle_val(val_handle);
+  job->interface = Int_val(val_interface);
+  job->alt_setting = Int_val(val_alt_setting);
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_set_interface_alt_setting_result(value val_job)
+{
+  struct job_set_interface_alt_setting *job = Job_set_interface_alt_setting(val_job);
+  if (job->result) ml_usb_error(job->result, "set_interface_alt_setting");
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_set_interface_alt_setting_free(value val_job)
+{
+  struct job_set_interface_alt_setting *job = Job_set_interface_alt_setting(val_job);
+  lwt_unix_free_job(&job->job);
+  return Val_unit;
+}
+
+/* +-----------------------------------------------------------------+
+   | JOB: clear_halt                                                 |
+   +-----------------------------------------------------------------+ */
+
+struct job_clear_halt {
+  struct lwt_unix_job job;
+  libusb_device_handle *handle;
+  int endpoint;
+  int result;
+};
+
+#define Job_clear_halt(v) *(struct job_clear_halt**)Data_custom_val(v)
+
+static void worker_clear_halt(struct job_clear_halt *job)
+{
+  job->result = libusb_clear_halt(job->handle, job->endpoint);
+}
+
+CAMLprim value ml_usb_clear_halt_job(value val_handle, value val_endpoint)
+{
+  struct job_clear_halt *job = lwt_unix_new(struct job_clear_halt);
+  job->job.worker = (lwt_unix_job_worker)worker_clear_halt;
+  job->handle = Handle_val(val_handle);
+  job->endpoint = Int_val(val_endpoint);
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_clear_halt_result(value val_job)
+{
+  struct job_clear_halt *job = Job_clear_halt(val_job);
+  if (job->result) ml_usb_error(job->result, "clear_halt");
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_clear_halt_free(value val_job)
+{
+  struct job_clear_halt *job = Job_clear_halt(val_job);
+  lwt_unix_free_job(&job->job);
+  return Val_unit;
+}
+
+/* +-----------------------------------------------------------------+
+   | JOB: reset_device                                               |
+   +-----------------------------------------------------------------+ */
+
+struct job_reset_device {
+  struct lwt_unix_job job;
+  libusb_device_handle *handle;
+  int result;
+};
+
+#define Job_reset_device(v) *(struct job_reset_device**)Data_custom_val(v)
+
+static void worker_reset_device(struct job_reset_device *job)
+{
+  job->result = libusb_reset_device(job->handle);
+}
+
+CAMLprim value ml_usb_reset_device_job(value val_handle)
+{
+  struct job_reset_device *job = lwt_unix_new(struct job_reset_device);
+  job->job.worker = (lwt_unix_job_worker)worker_reset_device;
+  job->handle = Handle_val(val_handle);
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_reset_device_result(value val_job)
+{
+  struct job_reset_device *job = Job_reset_device(val_job);
+  if (job->result) ml_usb_error(job->result, "reset_device");
+  return Val_unit;
+}
+
+CAMLprim value ml_usb_reset_device_free(value val_job)
+{
+  struct job_reset_device *job = Job_reset_device(val_job);
+  lwt_unix_free_job(&job->job);
   return Val_unit;
 }
 
