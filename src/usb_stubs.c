@@ -140,7 +140,7 @@ static void ml_usb_handle_io(struct ev_loop *loop, ev_io *watcher, int revents)
 
 static void ml_usb_add_watcher(int fd, int event)
 {
-  struct node* node = (struct node*)ml_usb_malloc(sizeof(struct node*));
+  struct node* node = (struct node*)ml_usb_malloc(sizeof(struct node));
   node->next = watchers;
   watchers = node;
   ev_io_init(&(node->watcher), ml_usb_handle_io, fd, event);
