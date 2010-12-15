@@ -421,7 +421,7 @@ CAMLprim value ml_usb_claim_interface_job(value val_handle, value val_interface)
   job->job.worker = (lwt_unix_job_worker)worker_claim_interface;
   job->handle = Handle_val(val_handle);
   job->interface = Int_val(val_interface);
-  return Val_unit;
+  return lwt_unix_alloc_job(&(job->job));
 }
 
 CAMLprim value ml_usb_claim_interface_result(value val_job)
@@ -462,7 +462,7 @@ CAMLprim value ml_usb_release_interface_job(value val_handle, value val_interfac
   job->job.worker = (lwt_unix_job_worker)worker_release_interface;
   job->handle = Handle_val(val_handle);
   job->interface = Int_val(val_interface);
-  return Val_unit;
+  return lwt_unix_alloc_job(&(job->job));
 }
 
 CAMLprim value ml_usb_release_interface_result(value val_job)
@@ -502,7 +502,7 @@ CAMLprim value ml_usb_get_configuration_job(value val_handle)
   struct job_get_configuration *job = lwt_unix_new(struct job_get_configuration);
   job->job.worker = (lwt_unix_job_worker)worker_get_configuration;
   job->handle = Handle_val(val_handle);
-  return Val_unit;
+  return lwt_unix_alloc_job(&(job->job));
 }
 
 CAMLprim value ml_usb_get_configuration_result(value val_job)
@@ -543,7 +543,7 @@ CAMLprim value ml_usb_set_configuration_job(value val_handle, value val_configur
   job->job.worker = (lwt_unix_job_worker)worker_set_configuration;
   job->handle = Handle_val(val_handle);
   job->configuration = Int_val(val_configuration);
-  return Val_unit;
+  return lwt_unix_alloc_job(&(job->job));
 }
 
 CAMLprim value ml_usb_set_configuration_result(value val_job)
@@ -586,7 +586,7 @@ CAMLprim value ml_usb_set_interface_alt_setting_job(value val_handle, value val_
   job->handle = Handle_val(val_handle);
   job->interface = Int_val(val_interface);
   job->alt_setting = Int_val(val_alt_setting);
-  return Val_unit;
+  return lwt_unix_alloc_job(&(job->job));
 }
 
 CAMLprim value ml_usb_set_interface_alt_setting_result(value val_job)
@@ -627,7 +627,7 @@ CAMLprim value ml_usb_clear_halt_job(value val_handle, value val_endpoint)
   job->job.worker = (lwt_unix_job_worker)worker_clear_halt;
   job->handle = Handle_val(val_handle);
   job->endpoint = Int_val(val_endpoint);
-  return Val_unit;
+  return lwt_unix_alloc_job(&(job->job));
 }
 
 CAMLprim value ml_usb_clear_halt_result(value val_job)
@@ -666,7 +666,7 @@ CAMLprim value ml_usb_reset_device_job(value val_handle)
   struct job_reset_device *job = lwt_unix_new(struct job_reset_device);
   job->job.worker = (lwt_unix_job_worker)worker_reset_device;
   job->handle = Handle_val(val_handle);
-  return Val_unit;
+  return lwt_unix_alloc_job(&(job->job));
 }
 
 CAMLprim value ml_usb_reset_device_result(value val_job)
