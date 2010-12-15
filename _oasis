@@ -15,6 +15,7 @@ Library "usb"
   Modules: USB
   BuildDepends: lwt.unix, lwt.syntax
   XMETADescription: Bindings for libusb-1.0
+  XMETARequires: lwt.unix
   CSources: usb_stubs.c
 
 Document "ocaml-usb-api"

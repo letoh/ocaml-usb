@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: 2810f9144ef0ab23926d3733252dbdc3)
+# DO NOT EDIT (digest: 751f648cfa9cc4e0228a722d58b93a07)
 version = "1.0.0"
 description = "Bindings for libusb-1.0"
-requires = "lwt.unix lwt.syntax"
+requires = "lwt.unix"
 archive(byte) = "usb.cma"
 archive(native) = "usb.cmxa"
 exists_if = "usb.cma"
