@@ -114,14 +114,14 @@ static void ml_usb_timer_prepare(struct ev_loop *loop, ev_prepare *watcher, int 
   if (libusb_get_next_timeout(NULL, &tp) == 1) {
     /* There is a timeout */
     ev_timer_set(&timer_watcher, tp.tv_sec + (tp.tv_usec * 1e-3), 0);
-    ev_timer_start(NULL, &timer_watcher);
+    ev_timer_start(lwt_unix_main_loop, &timer_watcher);
   }
 }
 
 static void ml_usb_timer_check(struct ev_loop *loop, ev_check *watcher, int revents)
 {
   if (ev_is_active(&timer_watcher)) {
-    ev_timer_stop(NULL, &timer_watcher);
+    ev_timer_stop(lwt_unix_main_loop, &timer_watcher);
     ml_usb_handle_events();
   }
 }
@@ -144,7 +144,7 @@ static void ml_usb_add_watcher(int fd, int event)
   node->next = watchers;
   watchers = node;
   ev_io_init(&(node->watcher), ml_usb_handle_io, fd, event);
-  ev_io_start(NULL, &(node->watcher));
+  ev_io_start(lwt_unix_main_loop, &(node->watcher));
 }
 
 static void ml_usb_add_pollfd(int fd, short events, void *user_data)
@@ -161,7 +161,7 @@ static void ml_usb_remove_pollfd(int fd, void *user_data)
   struct node* node = watchers;
   while (node) {
     if (node->watcher.fd == fd) {
-      ev_io_stop(NULL, &(node->watcher));
+      ev_io_stop(lwt_unix_main_loop, &(node->watcher));
       node = node->next;
       *store = node;
     } else {
