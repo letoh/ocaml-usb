@@ -18,7 +18,6 @@
 #include <poll.h>
 #include <string.h>
 #include <stdio.h>
-#include <ev.h>
 #include <sys/time.h>
 #include <lwt_unix.h>
 
@@ -99,86 +98,45 @@ static struct libusb_transfer *ml_usb_alloc_transfer(int count)
    | Event-loop integration                                          |
    +-----------------------------------------------------------------+ */
 
-void ml_usb_handle_events()
+CAMLprim value ml_usb_handle_events()
 {
   struct timeval tp = { 0, 0 };
   int res = libusb_handle_events_timeout(NULL, &tp);
   if (res) ml_usb_error(res, "handle_event_timeout");
+  return Val_unit;
 }
 
-static ev_timer timer_watcher;
-
-static void ml_usb_timer_prepare(struct ev_loop *loop, ev_prepare *watcher, int revents)
+CAMLprim value ml_usb_get_next_timeout()
 {
   struct timeval tp;
-  if (libusb_get_next_timeout(NULL, &tp) == 1) {
-    /* There is a timeout */
-    ev_timer_set(&timer_watcher, tp.tv_sec + (tp.tv_usec * 1e-3), 0);
-    ev_timer_start(lwt_unix_main_loop, &timer_watcher);
-  }
+  if (libusb_get_next_timeout(NULL, &tp) == 1)
+    return caml_copy_double(tp.tv_sec + (tp.tv_usec * 1e-3));
+  else
+    return caml_copy_double(-1.0);
 }
 
-static void ml_usb_timer_check(struct ev_loop *loop, ev_check *watcher, int revents)
-{
-  if (ev_is_active(&timer_watcher)) {
-    ev_timer_stop(lwt_unix_main_loop, &timer_watcher);
-    ml_usb_handle_events();
-  }
-}
-
-struct node {
-  struct ev_io watcher;
-  struct node* next;
-};
-
-static struct node* watchers = NULL;
-
-static void ml_usb_handle_io(struct ev_loop *loop, ev_io *watcher, int revents)
-{
-  ml_usb_handle_events();
-}
-
-static void ml_usb_add_watcher(int fd, int event)
-{
-  struct node* node = (struct node*)ml_usb_malloc(sizeof(struct node));
-  node->next = watchers;
-  watchers = node;
-  ev_io_init(&(node->watcher), ml_usb_handle_io, fd, event);
-  ev_io_start(lwt_unix_main_loop, &(node->watcher));
-}
+#if defined(LWT_ON_WINDOWS)
+#  error "ocaml-usb does not work (yet) on windows"
+#else
 
 static void ml_usb_add_pollfd(int fd, short events, void *user_data)
 {
-  if (events & POLLIN)
-    ml_usb_add_watcher(fd, EV_READ);
-  if (events & POLLOUT)
-    ml_usb_add_watcher(fd, EV_WRITE);
+  caml_callback3(*caml_named_value("ocaml-usb:insert-pollfd"),
+                 Val_int(fd),
+                 Val_bool(events & POLLIN),
+                 Val_bool(events & POLLOUT));
 }
 
 static void ml_usb_remove_pollfd(int fd, void *user_data)
 {
-  struct node** store = &watchers;
-  struct node* node = watchers;
-  while (node) {
-    if (node->watcher.fd == fd) {
-      ev_io_stop(lwt_unix_main_loop, &(node->watcher));
-      node = node->next;
-      *store = node;
-    } else {
-      store = &(node->next);
-      node = node->next;
-    }
-  }
+  caml_callback(*caml_named_value("ocaml-usb:remove-pollfd"), Val_int(fd));
 }
+
+#endif
 
 /* +-----------------------------------------------------------------+
    | Initialization                                                  |
    +-----------------------------------------------------------------+ */
-
-static void nop() {}
-
-static ev_prepare prepare_watcher;
-static ev_check check_watcher;
 
 CAMLprim value ml_usb_init()
 {
@@ -189,17 +147,6 @@ CAMLprim value ml_usb_init()
                               ml_usb_add_pollfd,
                               ml_usb_remove_pollfd,
                               NULL);
-
-  ev_prepare_init(&prepare_watcher, ml_usb_timer_prepare);
-  ev_set_priority(&prepare_watcher, EV_MINPRI);
-  ev_prepare_start(EV_DEFAULT, &prepare_watcher);
-
-  ev_check_init(&check_watcher, ml_usb_timer_check);
-  ev_set_priority(&check_watcher, EV_MAXPRI);
-  ev_check_start(EV_DEFAULT, &check_watcher);
-
-  ev_init(&timer_watcher, nop);
-  ev_set_priority(&timer_watcher, EV_MINPRI);
 
   return Val_unit;
 }
@@ -865,8 +812,6 @@ static value ml_usb_iso_result(struct libusb_transfer *transfer)
 /* Handler for device-to-host transfers: */
 static void ml_usb_handle_recv(struct libusb_transfer *transfer)
 {
-  LWT_UNIX_CHECK;
-
   CAMLparam0();
   CAMLlocal2(meta, result);
 
@@ -906,8 +851,6 @@ static void ml_usb_handle_recv(struct libusb_transfer *transfer)
 /* Handler for host-to-device transfers: */
 void ml_usb_handle_send(struct libusb_transfer *transfer)
 {
-  LWT_UNIX_CHECK;
-
   CAMLparam0();
   CAMLlocal2(caml_func, result);
 

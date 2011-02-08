@@ -138,6 +138,8 @@ type 'a result =
 external ml_usb_init : unit -> unit = "ml_usb_init"
 external ml_usb_exit : unit -> unit = "ml_usb_exit"
 external ml_usb_set_debug : int -> unit = "ml_usb_set_debug"
+external ml_usb_get_next_timeout : unit -> float = "ml_usb_get_next_timeout"
+external ml_usb_handle_events : unit -> unit = "ml_usb_handle_events"
 external ml_usb_get_device_list : unit -> device list = "ml_usb_get_device_list"
 external ml_usb_get_bus_number : device -> int = "ml_usb_get_bus_number"
 external ml_usb_get_device_address : device -> int = "ml_usb_get_device_address"
@@ -188,13 +190,51 @@ external ml_usb_reset_device_result : [ `reset_device ] job -> unit = "ml_usb_re
 external ml_usb_reset_device_free : [ `reset_device ] job -> unit = "ml_usb_reset_device_free"
 
 (* +-----------------------------------------------------------------+
+   | Lwt integration                                                 |
+   +-----------------------------------------------------------------+ *)
+
+let timeout_fired = ref false
+let timeout_event = ref Lwt_engine.fake_event
+
+let enter_iter () =
+  timeout_fired := false;
+  let timeout = ml_usb_get_next_timeout () in
+  if timeout >= 0. then
+    timeout_event := Lwt_engine.on_timer timeout false (fun _ -> timeout_fired := true)
+
+let leave_iter () =
+  Lwt_engine.stop_event !timeout_event;
+  if !timeout_fired then ml_usb_handle_events ()
+
+let events = Hashtbl.create 42
+
+let insert_pollfd fd check_readable check_writable =
+  let acc = [] in
+  let acc = if check_readable then Lwt_engine.on_readable fd (fun _ -> ml_usb_handle_events ()) :: acc else acc in
+  let acc = if check_readable then Lwt_engine.on_writable fd (fun _ -> ml_usb_handle_events ()) :: acc else acc in
+  Hashtbl.add events fd acc
+
+let remove_pollfd fd =
+  List.iter Lwt_engine.stop_event (Hashtbl.find events fd);
+  Hashtbl.remove events fd
+
+let () =
+  Callback.register "ocaml-usb:insert-pollfd" insert_pollfd;
+  Callback.register "ocaml-usb:remove-pollfd" remove_pollfd
+
+(* +-----------------------------------------------------------------+
    | Initialization                                                  |
    +-----------------------------------------------------------------+ *)
 
 (* Every function of this module must take care of forcing this before
    doing anything: *)
 let init = lazy(
+  (* Initializes libusb. *)
   ml_usb_init ();
+  (* Integrate libusb timoeuts into lwt. *)
+  ignore (Lwt_sequence.add_r enter_iter Lwt_main.enter_iter_hooks);
+  ignore (Lwt_sequence.add_r leave_iter Lwt_main.leave_iter_hooks);
+  (* Cleanup libusb on exit. *)
   let exit = lazy(ml_usb_exit ()) in
   at_exit (fun _ -> Lazy.force exit)
 )
