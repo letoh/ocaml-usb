@@ -211,7 +211,7 @@ let events = Hashtbl.create 42
 let insert_pollfd fd check_readable check_writable =
   let acc = [] in
   let acc = if check_readable then Lwt_engine.on_readable fd (fun _ -> ml_usb_handle_events ()) :: acc else acc in
-  let acc = if check_readable then Lwt_engine.on_writable fd (fun _ -> ml_usb_handle_events ()) :: acc else acc in
+  let acc = if check_writable then Lwt_engine.on_writable fd (fun _ -> ml_usb_handle_events ()) :: acc else acc in
   Hashtbl.add events fd acc
 
 let remove_pollfd fd =
