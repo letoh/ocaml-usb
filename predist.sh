@@ -7,4 +7,4 @@
 chmod +x configure
 
 # Remove this file
-rm -f predist.sh
+rm -f predist.sh boring
