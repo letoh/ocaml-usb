@@ -140,8 +140,19 @@ static void ml_usb_remove_pollfd(int fd, void *user_data)
 
 CAMLprim value ml_usb_init()
 {
+
+  const struct libusb_pollfd** pollfds = NULL;
+
+  int i = 0;
+
   int res = libusb_init(NULL);
   if (res) ml_usb_error(res, "init");
+
+  pollfds = libusb_get_pollfds(NULL);
+
+  for (i = 0; pollfds[i] != NULL; i++ ) {
+    ml_usb_add_pollfd(pollfds[i]->fd, pollfds[i]->events, NULL);
+  }
 
   libusb_set_pollfd_notifiers(NULL,
                               ml_usb_add_pollfd,
