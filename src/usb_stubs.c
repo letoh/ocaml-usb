@@ -150,8 +150,12 @@ CAMLprim value ml_usb_init()
 
   pollfds = libusb_get_pollfds(NULL);
 
-  for (i = 0; pollfds[i] != NULL; i++ ) {
-    ml_usb_add_pollfd(pollfds[i]->fd, pollfds[i]->events, NULL);
+  if (pollfds) {
+    for (i = 0; pollfds[i] != NULL; i++ ) {
+      ml_usb_add_pollfd(pollfds[i]->fd, pollfds[i]->events, NULL);
+    }
+
+    free(pollfds);
   }
 
   libusb_set_pollfd_notifiers(NULL,
