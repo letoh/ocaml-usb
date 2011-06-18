@@ -2,13 +2,4 @@
 <src/*>: use_libusb
 
 # OASIS_START
-# DO NOT EDIT (digest: a67e7d6fdffab9540c72c1d30787fab7)
-# Library usb
-"src": include
-"src/usb.cmxs": use_usb
-<src/usb.{cma,cmxa}>: use_libusb
-<src/*.ml{,i}>: pkg_lwt.unix
-<src/*.ml{,i}>: pkg_lwt.syntax
-"src/usb_stubs.c": pkg_lwt.unix
-"src/usb_stubs.c": pkg_lwt.syntax
 # OASIS_STOP

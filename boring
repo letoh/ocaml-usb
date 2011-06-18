@@ -1,5 +1,6 @@
 (^|/)_build($|/)
 ^ocaml-usb-.*\.tar\.gz$
 ^webdarcs\.log$
+^setup\.ml$
 ^setup\.data$
 ^setup\.log$
