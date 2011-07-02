@@ -14,6 +14,7 @@
 #include <caml/fail.h>
 #include <caml/callback.h>
 #include <caml/signals.h>
+#include <stdint.h>
 #include <libusb.h>
 #include <poll.h>
 #include <string.h>
