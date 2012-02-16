@@ -199,12 +199,23 @@ module Class : sig
   val audio : t
   val communication : t
   val hid : t
+  val physical : t
   val printer : t
-  val ptp : t
+  val image : t
   val mass_storage : t
   val hub : t
   val data : t
+  val smart_card : t
+  val content_security : t
+  val video : t
+  val personal_healthcare : t
+  val diagnostic_device : t
+  val wireless : t
+  val application : t
   val vendor_specific : t
+
+  val ptp : t
+    (** Legacy name, same as {!image}. *)
 
   val to_string : t -> string
     (** Returns a string representation of a device class code *)

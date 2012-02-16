@@ -370,11 +370,20 @@ struct
   let audio = 1
   let communication = 2
   let hid = 3
+  let physical = 5
   let printer = 7
   let ptp = 6
+  let image = 6
   let mass_storage = 8
   let hub = 9
   let data = 10
+  let smart_card = 0x0b
+  let content_security = 0x0d
+  let video = 0x0e
+  let personal_healthcare = 0x0f
+  let diagnostic_device = 0xdc
+  let wireless = 0xe0
+  let application = 0xfe
   let vendor_specific = 0xff
 
   let to_string n =
@@ -383,11 +392,19 @@ struct
                     (audio, "audio");
                     (communication, "communication");
                     (hid, "HID");
+                    (physical, "physical");
                     (printer, "printer");
-                    (ptp, "PTP");
+                    (image, "image");
                     (mass_storage, "mass storage");
                     (hub, "HUB");
-                    (data, "data ");
+                    (data, "data");
+                    (smart_card, "smart card");
+                    (content_security, "content security");
+                    (video, "video");
+                    (personal_healthcare, "personal healthcare");
+                    (diagnostic_device, "diagnostic device");
+                    (wireless, "wireless");
+                    (application, "application");
                     (vendor_specific, "vendor specific")]
     with Not_found ->
       Printf.sprintf "0x%x02x" n
