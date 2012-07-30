@@ -1,3 +1,10 @@
+===== 1.3.0 =====
+
+  * fix an initialization bug
+  * fix build of stubs of kfreebsd
+  * add more device classes
+  * update oasis files
+
 ===== 1.2.0 =====
 
   * upgrade for lwt-2.3.0
