@@ -1,4 +1,4 @@
-OASISFormat: 0.1
+OASISFormat: 0.3
 Name: ocaml-usb
 Version: 1.2.0
 LicenseFile: COPYING
@@ -6,7 +6,7 @@ License: BSD3
 Authors: Jérémie Dimino
 Homepage: http://ocaml-usb.forge.ocamlcore.org/
 BuildTools: ocamlbuild
-Plugins: DevFiles (0.2), META (0.2)
+Plugins: DevFiles (0.3), META (0.3)
 Synopsis: Bindings for libusb-1.0
 
 Library "usb"
@@ -20,7 +20,7 @@ Library "usb"
 
 Document "ocaml-usb-api"
   Title: API reference for ocaml-usb
-  Type: ocamlbuild (0.2)
+  Type: ocamlbuild (0.3)
   Install: true
   InstallDir: $htmldir/api
   BuildTools: ocamldoc
