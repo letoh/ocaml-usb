@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 Name: ocaml-usb
-Version: 1.2.0
+Version: 1.3.0
 LicenseFile: COPYING
 License: BSD3
 Authors: Jérémie Dimino
