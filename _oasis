@@ -7,6 +7,7 @@ Authors: Jérémie Dimino
 Homepage: http://ocaml-usb.forge.ocamlcore.org/
 BuildTools: ocamlbuild
 Plugins: DevFiles (0.3), META (0.3)
+XDevFilesEnableMakefile: false
 Synopsis: Bindings for libusb-1.0
 Description:
     OCaml-USB is a binding to libusb-1.0. It uses Lwt to make it easy
