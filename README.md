@@ -18,13 +18,13 @@ For building the development version, you also need to install
 Installation
 ------------
 
-To build and install Lambda-Term:
+To build and install ocaml-usb:
 
     $ ./configure
     $ make
     $ make install
 
-### Documentation and manual pages _(optional)_
+### Documentation _(optional)_
 
 To build the documentation:
 
