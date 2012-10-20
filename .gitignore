@@ -1,0 +1,6 @@
+_build/
+/ocaml-usb-*.tar.gz
+/setup.data
+/setup.log
+/setup.exe
+/setup-dev.exe

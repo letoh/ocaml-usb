@@ -8,6 +8,9 @@ Homepage: http://ocaml-usb.forge.ocamlcore.org/
 BuildTools: ocamlbuild
 Plugins: DevFiles (0.3), META (0.3)
 Synopsis: Bindings for libusb-1.0
+Description:
+    OCaml-USB is a binding to libusb-1.0. It uses Lwt to make it easy
+    to use asynchronous IO features of libusb-1.0.
 
 Library "usb"
   FindlibName: usb
@@ -28,6 +31,6 @@ Document "ocaml-usb-api"
   XOCamlbuildLibraries: usb
 
 SourceRepository head
-  Type: darcs
-  Location: http://darcs.ocamlcore.org/repos/ocaml-usb
-  Browser: http://darcs.ocamlcore.org/cgi-bin/darcsweb.cgi?r=ocaml-usb;a=summary
+  Type: git
+  Location: https://github.com/diml/ocaml-usb.git
+  Browser: https://github.com/diml/ocaml-usb
