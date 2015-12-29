@@ -8,7 +8,6 @@
  *)
 
 open Lwt_unix
-open Lwt
 
 (* +-----------------------------------------------------------------+
    | Errors                                                          |
@@ -69,12 +68,12 @@ let transfer_error_message = function
 let () =
   Printexc.register_printer
     (function
-       | Error(err, fun_name) ->
-           Some(Printf.sprintf "USB error: '%s' failed: %s" fun_name (error_message err))
-       | Transfer(err, fun_name) ->
-           Some(Printf.sprintf "USB transfer error: '%s' failed: %s" fun_name (transfer_error_message err))
-       | exn ->
-           None)
+      | Error(err, fun_name) ->
+        Some(Printf.sprintf "USB error: '%s' failed: %s" fun_name (error_message err))
+      | Transfer(err, fun_name) ->
+        Some(Printf.sprintf "USB transfer error: '%s' failed: %s" fun_name (transfer_error_message err))
+      | exn ->
+        None)
 
 let handle_error f arg =
   try
@@ -267,16 +266,16 @@ let check_handle handle =
   if handle.state = State_closed then failwith "device handle closed"
 
 let detach handle job result free =
-  Lwt_mutex.with_lock handle.mutex
-    (fun () ->
+  Lwt_mutex.with_lock handle.mutex begin fun () ->
        check_handle handle;
        handle.state <- State_detach;
-       try_lwt
-         execute_job (job ()) result free
-       finally
-         if handle.state = State_detach then
-           handle.state <- State_ok;
-         return ())
+       Lwt.finalize
+         (fun () -> execute_job ?async_method:None ~job:(job ()) ~result ~free)
+         (fun () ->
+            if handle.state = State_detach
+            then handle.state <- State_ok;
+            Lwt.return ())
+  end
 
 let get_bus_number = ml_usb_get_bus_number
 let get_device_address = ml_usb_get_device_address
@@ -514,7 +513,7 @@ let handle_iso_result func_name w = function
 let iso_transfer name func ~handle ~endpoint ?timeout buffer offset lengths =
   check_handle handle;
   if lengths = [] then
-    return []
+    Lwt.return []
   else begin
     List.iter (fun length -> if length < 0 then invalid_arg ("USB." ^ name)) lengths;
     let length = List.fold_left (+) 0 lengths in
@@ -553,13 +552,13 @@ end
    +-----------------------------------------------------------------+ *)
 
 let get_string_descriptor handle ?timeout ?lang_id ~index =
-  let data = String.create 255 in
-  lwt lang_id = match lang_id with
+  let data = Bytes.create 255 in
+  let%lwt lang_id = match lang_id with
     | Some lang_id ->
-        return lang_id
+      Lwt.return lang_id
     | None ->
-        (* Guess the default language id *)
-        lwt n = control_recv
+      (* Guess the default language id *)
+      let%lwt n = control_recv
           ~handle
           ~endpoint:0
           ?timeout
@@ -567,21 +566,21 @@ let get_string_descriptor handle ?timeout ?lang_id ~index =
           ~value:(DT.string lsl 8)
           ~index:0
           data 0 (String.length data) in
-        if n < 4 then
-          raise_lwt (Failure "USB.get_string_descriptor: cannot retreive default lang id")
-        else
-          return (Char.code data.[2] lor (Char.code data.[3] lsl 8))
+      if n < 4 then
+        Lwt.fail (Failure "USB.get_string_descriptor: cannot retreive default lang id")
+      else
+        Lwt.return (Char.code data.[2] lor (Char.code data.[3] lsl 8))
   in
-  lwt n = control_recv
-    ~handle
-    ~endpoint:0
-    ?timeout
-    ~request:Request.get_descriptor
-    ~value:(DT.string lsl 8 lor index)
-    ~index:lang_id
-    data 0 (String.length data) in
+  let%lwt n = control_recv
+      ~handle
+      ~endpoint:0
+      ?timeout
+      ~request:Request.get_descriptor
+      ~value:(DT.string lsl 8 lor index)
+      ~index:lang_id
+      data 0 (String.length data) in
   let len = Char.code data.[0] in
   if Char.code data.[1] <> DT.string || len > n then
-    raise_lwt (Failure "USB.get_string_descriptor: invalid control packet")
+    Lwt.fail (Failure "USB.get_string_descriptor: invalid control packet")
   else
-    return (String.sub data 2 (len - 2))
+    Lwt.return (String.sub data 2 (len - 2))

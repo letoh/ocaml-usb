@@ -1,4 +1,3 @@
-<src/*.ml>: syntax_camlp4o
 <src/*>: use_libusb
 
 # OASIS_START

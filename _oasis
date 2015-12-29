@@ -2,7 +2,7 @@ OASISFormat: 0.3
 Name: ocaml-usb
 Version: 1.3.0
 LicenseFile: COPYING
-License: BSD3
+License: BSD-3-clause
 Authors: Jérémie Dimino
 Homepage: http://ocaml-usb.forge.ocamlcore.org/
 BuildTools: ocamlbuild
@@ -17,7 +17,7 @@ Library "usb"
   FindlibName: usb
   Path: src
   Modules: USB
-  BuildDepends: lwt.unix, lwt.syntax
+  BuildDepends: lwt.unix, lwt.ppx
   XMETADescription: Bindings for libusb-1.0
   XMETARequires: lwt.unix
   CSources: usb_stubs.c

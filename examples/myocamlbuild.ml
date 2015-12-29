@@ -42,15 +42,9 @@ let packages = [
   "lwt.glib";
   "lwt.text";
   "lwt.unix";
+  "lwt.ppx";
   "usb";
-
-  (* Syntax extensions: *)
-  "camlp4";
-  "lwt.syntax";
 ]
-
-(* List of syntaxes: *)
-let syntaxes = [ "camlp4o"; "camlp4r" ]
 
 (* +-----------------------------------------------------------------+
    | Utils                                                           |
@@ -113,10 +107,5 @@ let _ =
           (fun package -> flag_all_stages ("pkg_" ^ package) (S[A"-package"; A package]))
           packages;
 
-        (* Like -package but for extensions syntax. Morover -syntax is
-           useless when linking. *)
-        List.iter
-          (fun syntax -> flag_all_stages_except_link ("syntax_" ^ syntax) (S[A"-syntax"; A syntax]))
-          syntaxes;
     | _ -> ()
   end
