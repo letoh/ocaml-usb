@@ -835,9 +835,12 @@ static void ml_usb_handle_recv(struct libusb_transfer *transfer)
   meta = (value)(transfer->user_data);
 
   if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
+    int leading_setup = 0;
+    if (transfer->type == LIBUSB_TRANSFER_TYPE_CONTROL) leading_setup = LIBUSB_CONTROL_SETUP_SIZE;
+
     /* Copy bytes from the C memory to the caml string: */
     memcpy(String_val(Field(meta, 1)) + Long_val(Field(meta, 2)),
-           transfer->buffer, transfer->actual_length);
+           transfer->buffer + leading_setup, transfer->actual_length);
     /* Returns [OK actual_length] */
     result = caml_alloc(1, 0);
     if (transfer->num_iso_packets == 0)
@@ -900,8 +903,10 @@ void ml_usb_handle_send(struct libusb_transfer *transfer)
 }
 
 /* Alloc a transfer and fill it with common informations: */
+static void ml_usb_fill_control_setup(void *buf, value desc, enum libusb_endpoint_direction direction);
 struct libusb_transfer *ml_usb_transfer(value desc /* the description provided by the caml function: */,
                                         value meta /* metadata for the callback */,
+                                        enum libusb_transfer_type type,
                                         enum libusb_endpoint_direction direction,
                                         int num_iso_packets)
 {
@@ -909,10 +914,16 @@ struct libusb_transfer *ml_usb_transfer(value desc /* the description provided b
   transfer->dev_handle = Handle_val(Field(desc, 0));
   transfer->endpoint = Int_val(Field(desc, 1)) | direction;
   transfer->timeout = Int_val(Field(desc, 2));
-  transfer->buffer = ml_usb_alloc_buffer(Int_val(Field(desc, 5)));
-  transfer->length = Int_val(Field(desc, 5));
+  int length = Int_val(Field(desc, 5));
+  if (type == LIBUSB_TRANSFER_TYPE_CONTROL) length += LIBUSB_CONTROL_SETUP_SIZE;
+  transfer->buffer = ml_usb_alloc_buffer(length);
+  transfer->length = length;
   transfer->user_data = (void*)meta;
   transfer->num_iso_packets = num_iso_packets;
+  transfer->type = type;
+
+  if (type == LIBUSB_TRANSFER_TYPE_CONTROL)
+    ml_usb_fill_control_setup(transfer->buffer, desc, direction);
 
   /* Register metadata as a memory root, because we need it for the
      callback which will be called later: */
@@ -936,9 +947,8 @@ CAMLprim value ml_usb_recv(value desc, enum libusb_transfer_type type, int num_i
   /* - the offset in the buffer: */
   Store_field(meta, 2, Field(desc, 4));
 
-  struct libusb_transfer *transfer = ml_usb_transfer(desc, meta, LIBUSB_ENDPOINT_IN, num_iso_packets);
+  struct libusb_transfer *transfer = ml_usb_transfer(desc, meta, type, LIBUSB_ENDPOINT_IN, num_iso_packets);
   transfer->callback = ml_usb_handle_recv;
-  transfer->type = type;
 
   int res = libusb_submit_transfer(transfer);
   if (res) ml_usb_error(res, "submit_transfer");
@@ -950,12 +960,13 @@ CAMLprim value ml_usb_recv(value desc, enum libusb_transfer_type type, int num_i
 CAMLprim value ml_usb_send(value desc, enum libusb_transfer_type type, int num_iso_packets)
 {
   /* Metadata contains only the callback: */
-  struct libusb_transfer *transfer = ml_usb_transfer(desc, Field(desc, 6), LIBUSB_ENDPOINT_OUT, num_iso_packets);
+  struct libusb_transfer *transfer = ml_usb_transfer(desc, Field(desc, 6), type, LIBUSB_ENDPOINT_OUT, num_iso_packets);
   transfer->callback = ml_usb_handle_send;
-  transfer->type = type;
 
   /* Copy data to send from the managed memory to the C memory: */
-  memcpy(transfer->buffer, String_val(Field(desc, 3)) + Long_val(Field(desc, 4)), Long_val(Field(desc, 5)));
+  int leading_setup = 0;
+  if (type == LIBUSB_TRANSFER_TYPE_CONTROL) leading_setup = LIBUSB_CONTROL_SETUP_SIZE;
+  memcpy(transfer->buffer + leading_setup, String_val(Field(desc, 3)) + Long_val(Field(desc, 4)), Long_val(Field(desc, 5)));
 
   int res = libusb_submit_transfer(transfer);
   if (res) ml_usb_error(res, "submit_transfer");
@@ -984,30 +995,25 @@ CAMLprim value ml_usb_interrupt_send(value desc)
 }
 
 /* Generic function which filling the data section of a control transfer: */
-CAMLprim value ml_usb_control(value desc, enum libusb_endpoint_direction direction)
+static void ml_usb_fill_control_setup(void *buf, value desc, enum libusb_endpoint_direction direction)
 {
-  struct libusb_control_setup *control = (struct libusb_control_setup*)String_val(Field(desc,3));
-  control->bmRequestType = Int_val(Field(desc, 7)) | (Int_val(Field(desc, 8)) << 5) | direction;
-  control->bRequest =  Int_val(Field(desc, 9));
-  control->wValue =  libusb_cpu_to_le16(Int_val(Field(desc, 10)));
-  control->wIndex =  libusb_cpu_to_le16(Int_val(Field(desc, 11)));
-  int length = Int_val(Field(desc, 5));
-  control->wLength = libusb_cpu_to_le16(length);
-  Field(desc, 5) = Val_int(length + LIBUSB_CONTROL_SETUP_SIZE);
-  if (direction == LIBUSB_ENDPOINT_IN)
-    return ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_CONTROL, 0);
-  else
-    return ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_CONTROL, 0);
+  libusb_fill_control_setup(buf,
+    /* bmRequestType */ Int_val(Field(desc, 7)) | (Int_val(Field(desc, 8)) << 5) | direction,
+    /* bRequest      */ Int_val(Field(desc, 9)),
+    /* wValue        */ libusb_cpu_to_le16(Int_val(Field(desc, 10))),
+    /* wIndex        */ libusb_cpu_to_le16(Int_val(Field(desc, 11))),
+    /* wLength       */ libusb_cpu_to_le16(Int_val(Field(desc, 5)))
+  );
 }
 
 CAMLprim value ml_usb_control_recv(value desc)
 {
-  return ml_usb_control(desc, LIBUSB_ENDPOINT_IN);
+  return ml_usb_recv(desc, LIBUSB_TRANSFER_TYPE_CONTROL, 0);
 }
 
 CAMLprim value ml_usb_control_send(value desc)
 {
-  return ml_usb_control(desc, LIBUSB_ENDPOINT_OUT);
+  return ml_usb_send(desc, LIBUSB_TRANSFER_TYPE_CONTROL, 0);
 }
 
 CAMLprim value ml_usb_iso(value desc, enum libusb_endpoint_direction direction)
