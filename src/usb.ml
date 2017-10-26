@@ -7,6 +7,7 @@
  * This file is a part of ocaml-usb.
  *)
 
+open Lwt.Infix
 open Lwt_unix
 
 (* +-----------------------------------------------------------------+
@@ -553,32 +554,32 @@ end
 
 let get_string_descriptor handle ?timeout ?lang_id ~index =
   let data = Bytes.create 255 in
-  let%lwt lang_id = match lang_id with
+  begin match lang_id with
     | Some lang_id ->
       Lwt.return lang_id
     | None ->
       (* Guess the default language id *)
-      let%lwt n = control_recv
-          ~handle
-          ~endpoint:0
-          ?timeout
-          ~request:Request.get_descriptor
-          ~value:(DT.string lsl 8)
-          ~index:0
-          data 0 (String.length data) in
+      control_recv
+        ~handle
+        ~endpoint:0
+        ?timeout
+        ~request:Request.get_descriptor
+        ~value:(DT.string lsl 8)
+        ~index:0
+        data 0 (String.length data) >>= fun n ->
       if n < 4 then
         Lwt.fail (Failure "USB.get_string_descriptor: cannot retreive default lang id")
       else
         Lwt.return (Char.code data.[2] lor (Char.code data.[3] lsl 8))
-  in
-  let%lwt n = control_recv
-      ~handle
-      ~endpoint:0
-      ?timeout
-      ~request:Request.get_descriptor
-      ~value:(DT.string lsl 8 lor index)
-      ~index:lang_id
-      data 0 (String.length data) in
+  end >>= fun lang_id ->
+  control_recv
+    ~handle
+    ~endpoint:0
+    ?timeout
+    ~request:Request.get_descriptor
+    ~value:(DT.string lsl 8 lor index)
+    ~index:lang_id
+    data 0 (String.length data) >>= fun n ->
   let len = Char.code data.[0] in
   if Char.code data.[1] <> DT.string || len > n then
     Lwt.fail (Failure "USB.get_string_descriptor: invalid control packet")

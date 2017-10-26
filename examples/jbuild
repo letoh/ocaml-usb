@@ -1,0 +1,4 @@
+(executable
+ ((name list_devices)
+  (public_name ocaml-usb-list-devices)
+  (libraries (usb))))
