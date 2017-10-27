@@ -193,32 +193,33 @@ val reset_device : handle -> unit Lwt.t
 
 (** Device class codes *)
 module Class : sig
-  type t = int
+  type t =
+    | Per_interface
+    | Audio
+    | Communication
+    | Hid
+    | Physical
+    | Printer
+    | Image
+    | Mass_storage
+    | Hub
+    | Data
+    | Smart_card
+    | Content_security
+    | Video
+    | Personal_healthcare
+    | Audio_video_device
+    | Billboard_device_class
+    | Usb_type_c_bridge_class
+    | Diagnostic_device
+    | Wireless_controler
+    | Misc
+    | Application_specific
+    | Vendor_specific
+  [@@deriving sexp]
 
-  val per_interface : t
-  val audio : t
-  val communication : t
-  val hid : t
-  val physical : t
-  val printer : t
-  val image : t
-  val mass_storage : t
-  val hub : t
-  val data : t
-  val smart_card : t
-  val content_security : t
-  val video : t
-  val personal_healthcare : t
-  val diagnostic_device : t
-  val wireless : t
-  val application : t
-  val vendor_specific : t
-
-  val ptp : t
-    (** Legacy name, same as {!image}. *)
-
-  val to_string : t -> string
-    (** Returns a string representation of a device class code *)
+  val to_int : t -> int
+  val of_int : int -> t
 end
 
 type device_descriptor = {
@@ -262,7 +263,7 @@ type device_descriptor = {
 
   dd_configurations : int;
   (** Number of possible configurations. *)
-}
+} [@@deriving sexp]
 
 val get_device_descriptor : device -> device_descriptor
   (** Get the USB device descriptor for a given device. *)
@@ -288,7 +289,7 @@ type endpoint_descriptor = {
 
   ed_synch_address : int;
   (** For audio devices only: the address if the synch endpoint. *)
-}
+} [@@deriving sexp]
 
 type interface_descriptor = {
   id_interface : int;
@@ -314,7 +315,7 @@ type interface_descriptor = {
 
   id_endpoints : endpoint_descriptor array;
   (** Array of endpoint descriptors. *)
-}
+} [@@deriving sexp]
 
 type config_descriptor = {
   cd_configuration_value : int;
@@ -338,7 +339,7 @@ type config_descriptor = {
       [cd_interface.(iface).(altsetting)] designate the interface
       descriptor for interface [iface] with alternate setting
       [altsetting]. *)
-}
+} [@@deriving sexp]
 
 val get_active_config_descriptor : device -> config_descriptor
   (** Get the USB configuration descriptor for the currently active
