@@ -350,21 +350,7 @@ val get_config_descriptor : device -> int -> config_descriptor
 
 val get_config_descriptor_by_value : device -> int -> config_descriptor
   (** Get a USB configuration descriptor with a specific
-      [cd_configuration_value]. *)
-
-(** Descriptor types *)
-module DT : sig
-  type t = int
-  val device : t
-  val config : t
-  val string : t
-  val interface : t
-  val endpoint : t
-  val hid : t
-  val report : t
-  val physical : t
-  val hub : t
-end
+      [configuration_value]. *)
 
 val get_string_descriptor : handle -> ?timeout : float -> ?lang_id : int -> index : int -> string Lwt.t
   (** Retrieve a string descriptor from a device. *)
