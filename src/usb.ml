@@ -440,45 +440,99 @@ module Class = struct
 end
 
 type device_descriptor = {
-  dd_usb : int;
-  dd_device_class : Class.t;
-  dd_device_sub_class : int;
-  dd_device_protocol : int;
-  dd_max_packet_size : int;
-  dd_vendor_id : int;
-  dd_product_id : int;
-  dd_device : int;
-  dd_index_manufacturer : int;
-  dd_index_product : int;
-  dd_index_serial_number : int;
-  dd_configurations : int;
+  usb : int;
+  device_class : Class.t;
+  device_sub_class : int;
+  device_protocol : int;
+  max_packet_size : int;
+  vendor_id : int;
+  product_id : int;
+  device : int;
+  index_manufacturer : int;
+  index_product : int;
+  index_serial_number : int;
+  configurations : int;
 } [@@deriving sexp]
 
-type endpoint_descriptor = {
-  ed_endpoint_address : int;
-  ed_attributes : int;
-  ed_max_packet_size : int;
-  ed_interval : int;
-  ed_refresh : int;
-  ed_synch_address : int;
-} [@@deriving sexp]
+module Endpoint = struct
+  type direction = Input | Output
+  let direction_of_int i = if i <= 1 lsl 7 then Input else Output
+
+  type transfert =
+    | Control
+    | Bulk
+    | Interrupt
+    | Isochronous of synchronisation * usage
+  and synchronisation = No_sync | Async | Adaptative | Sync
+  and usage = Data | Feedback | Explicit | Reserved
+  [@@deriving sexp]
+
+  let transfert_of_int i =
+    match i land 0x03 with
+    | 0 -> Control
+    | 2 -> Bulk
+    | 3 -> Interrupt
+    | 1 -> begin
+      let sync = match (i lsr 2) land 0x03 with
+        | 0 -> No_sync
+        | 1 -> Async
+        | 2 -> Adaptative
+        | 3 -> Sync
+        | _ -> assert false in
+      let usage = match (1 lsr 4) land 0x03 with
+        | 0 -> Data
+        | 1 -> Feedback
+        | 2 -> Explicit
+        | 3 -> Reserved
+        | _ -> assert false in
+      Isochronous (sync, usage)
+    end
+    | _ -> assert false
+
+  type raw_descriptor = {
+    endpoint_address : int;
+    attributes : int;
+    max_packet_size : int;
+    interval : int;
+    refresh : int;
+    sync_address : int;
+  } [@@deriving sexp]
+
+  type descriptor = {
+    address : int ;
+    transfert: transfert ;
+    max_packet_size : int ;
+    interval : int ;
+    refresh : int ;
+    sync_address : int ;
+  } [@@deriving sexp]
+
+  let descriptor_of_raw r = {
+    address = r.endpoint_address land 0x07 ;
+    transfert = transfert_of_int r.attributes ;
+    max_packet_size = r.max_packet_size ;
+    interval = r.interval ;
+    refresh = r.refresh ;
+    sync_address = r.sync_address ;
+  }
+end
 
 type interface_descriptor = {
-  id_interface : int;
-  id_alternate_setting : int;
-  id_interface_class : Class.t;
-  id_interface_sub_class : int;
-  id_interface_protocol : int;
-  id_index_interface : int;
-  id_endpoints : endpoint_descriptor array;
+  interface : int;
+  alternate_setting : int;
+  interface_class : Class.t;
+  interface_sub_class : int;
+  interface_protocol : int;
+  index_interface : int;
+  endpoints : Endpoint.raw_descriptor array;
 } [@@deriving sexp]
 
 type config_descriptor = {
-  cd_configuration_value : int;
-  cd_index_configuration : int;
-  cd_attributes : int;
-  cd_max_power : int;
-  cd_interfaces : interface_descriptor array array;
+  configuration_value : int;
+  index_configuration : int;
+  attributes : int;
+  max_power : int;
+  interfaces : interface_descriptor array array;
 } [@@deriving sexp]
 
 external get_device_descriptor : device -> device_descriptor = "ml_usb_get_device_descriptor"
