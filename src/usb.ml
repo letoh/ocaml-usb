@@ -458,7 +458,7 @@ module Endpoint = struct
   type direction = Input | Output
   let direction_of_int i = if i <= 1 lsl 7 then Input else Output
 
-  type transfert =
+  type transfer =
     | Control
     | Bulk
     | Interrupt
@@ -467,7 +467,7 @@ module Endpoint = struct
   and usage = Data | Feedback | Explicit | Reserved
   [@@deriving sexp]
 
-  let transfert_of_int i =
+  let transfer_of_int i =
     match i land 0x03 with
     | 0 -> Control
     | 2 -> Bulk
@@ -500,7 +500,7 @@ module Endpoint = struct
 
   type descriptor = {
     address : int ;
-    transfert: transfert ;
+    transfer : transfer ;
     max_packet_size : int ;
     interval : int ;
     refresh : int ;
@@ -509,7 +509,7 @@ module Endpoint = struct
 
   let descriptor_of_raw r = {
     address = r.endpoint_address land 0x07 ;
-    transfert = transfert_of_int r.attributes ;
+    transfer = transfer_of_int r.attributes ;
     max_packet_size = r.max_packet_size ;
     interval = r.interval ;
     refresh = r.refresh ;

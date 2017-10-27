@@ -293,7 +293,7 @@ module Endpoint : sig
   } [@@deriving sexp]
 
   type direction = Input | Output
-  type transfert =
+  type transfer =
     | Control
     | Bulk
     | Interrupt
@@ -303,7 +303,7 @@ module Endpoint : sig
 
   type descriptor = {
     address : int ;
-    transfert: transfert ;
+    transfer: transfer ;
     max_packet_size : int ;
     interval : int ;
     refresh : int ;
