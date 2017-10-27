@@ -638,7 +638,7 @@ end
    | Helpers                                                         |
    +-----------------------------------------------------------------+ *)
 
-let get_string_descriptor handle ?timeout ?lang_id ~index =
+let get_string_descriptor ?timeout ?lang_id handle index =
   let data = Bytes.create 255 in
   begin match lang_id with
     | Some lang_id ->

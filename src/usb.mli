@@ -374,7 +374,7 @@ val get_config_descriptor_by_value : device -> int -> config_descriptor
   (** Get a USB configuration descriptor with a specific
       [configuration_value]. *)
 
-val get_string_descriptor : handle -> ?timeout : float -> ?lang_id : int -> index : int -> string Lwt.t
+val get_string_descriptor : ?timeout : float -> ?lang_id : int -> handle -> int -> string Lwt.t
   (** Retrieve a string descriptor from a device. *)
 
 (** {6 IOs} *)
