@@ -1,0 +1,18 @@
+opam-version: "1.2"
+name: "usb"
+version: "1.4.0"
+authors: "Jeremie Dimino <jeremie@dimino.org>"
+maintainer: "Vincent Bernardoff <vb@luminar.eu.org>"
+homepage: "https://github.com/vbmithr/ocaml-usb"
+bug-reports: "https://github.com/vbmithr/ocaml-usb/issues"
+dev-repo: "git://github.com/vbmithr/ocaml-usb"
+
+available: [
+  ocaml-version >= "4.02.0"
+]
+
+build: [ "jbuilder" "build" "-j" jobs "-p" name "@install" ]
+depends: [
+  "jbuilder" {build & >= "1.0+beta13"}
+  "lwt" {>= "2.0.0"}
+]

@@ -193,152 +193,175 @@ val reset_device : handle -> unit Lwt.t
 
 (** Device class codes *)
 module Class : sig
-  type t = int
+  type t =
+    | Per_interface
+    | Audio
+    | Communication
+    | Hid
+    | Physical
+    | Printer
+    | Image
+    | Mass_storage
+    | Hub
+    | Data
+    | Smart_card
+    | Content_security
+    | Video
+    | Personal_healthcare
+    | Audio_video_device
+    | Billboard_device_class
+    | Usb_type_c_bridge_class
+    | Diagnostic_device
+    | Wireless_controler
+    | Misc
+    | Application_specific
+    | Vendor_specific
+  [@@deriving sexp]
 
-  val per_interface : t
-  val audio : t
-  val communication : t
-  val hid : t
-  val physical : t
-  val printer : t
-  val image : t
-  val mass_storage : t
-  val hub : t
-  val data : t
-  val smart_card : t
-  val content_security : t
-  val video : t
-  val personal_healthcare : t
-  val diagnostic_device : t
-  val wireless : t
-  val application : t
-  val vendor_specific : t
-
-  val ptp : t
-    (** Legacy name, same as {!image}. *)
-
-  val to_string : t -> string
-    (** Returns a string representation of a device class code *)
+  val to_int : t -> int
+  val of_int : int -> t
 end
 
 type device_descriptor = {
-  dd_usb : int;
+  usb : int;
   (** USB specification release number in binary-coded decimal.
 
       A value of 0x0200 indicates USB 2.0, 0x0110 indicates USB 1.1,
       etc. *)
 
-  dd_device_class : Class.t;
+  device_class : Class.t;
   (** USB-IF class code for the device. *)
 
-  dd_device_sub_class : int;
+  device_sub_class : int;
   (** USB-IF subclass code for the device, qualified by the
-      [dd_device_class] value. *)
+      [device_class] value. *)
 
-  dd_device_protocol : int;
+  device_protocol : int;
   (** USB-IF protocol code for the device, qualified by the
-      [dd_device_class] and [dd_device_subclass] values. *)
+      [device_class] and [device_subclass] values. *)
 
-  dd_max_packet_size : int;
+  max_packet_size : int;
   (** Maximum packet size for endpoint 0. *)
 
-  dd_vendor_id : int;
+  vendor_id : int;
   (** USB-IF vendor ID. *)
 
-  dd_product_id : int;
+  product_id : int;
   (** USB-IF product ID. *)
 
-  dd_device : int;
+  device : int;
   (** Device release number in binary-coded decimal. *)
 
-  dd_index_manufacturer : int;
+  index_manufacturer : int;
   (** Index of string descriptor describing manufacturer. *)
 
-  dd_index_product : int;
+  index_product : int;
   (** Index of string descriptor describing product. *)
 
-  dd_index_serial_number : int;
+  index_serial_number : int;
   (** Index of string descriptor containing device serial number. *)
 
-  dd_configurations : int;
+  configurations : int;
   (** Number of possible configurations. *)
-}
+} [@@deriving sexp]
 
 val get_device_descriptor : device -> device_descriptor
   (** Get the USB device descriptor for a given device. *)
 
-type endpoint_descriptor = {
-  ed_endpoint_address : int;
-  (** The address of the endpoint described by this descriptor. *)
+module Endpoint : sig
+  type raw_descriptor = {
+    endpoint_address : int;
+    (** The address of the endpoint described by this descriptor. *)
 
-  ed_attributes : int;
-  (** Attributes which apply to the endpoint when it is configured
-      using the {!cd_configuration_value}. *)
+    attributes : int;
+    (** Attributes which apply to the endpoint when it is configured
+        using the {!cd_configuration_value}. *)
 
-  ed_max_packet_size : int;
-  (** Maximum packet size this endpoint is capable of
-      sending/receiving. *)
+    max_packet_size : int;
+    (** Maximum packet size this endpoint is capable of
+        sending/receiving. *)
 
-  ed_interval : int;
-  (** Interval for polling endpoint for data transfers. *)
+    interval : int;
+    (** Interval for polling endpoint for data transfers. *)
 
-  ed_refresh : int;
-  (** For audio devices only: the rate at which synchronization
-      feedback is provided. *)
+    refresh : int;
+    (** For audio devices only: the rate at which synchronization
+        feedback is provided. *)
 
-  ed_synch_address : int;
-  (** For audio devices only: the address if the synch endpoint. *)
-}
+    sync_address : int;
+    (** For audio devices only: the address if the synch endpoint. *)
+  } [@@deriving sexp]
+
+  type direction = Input | Output
+  type transfer =
+    | Control
+    | Bulk
+    | Interrupt
+    | Isochronous of synchronisation * usage
+  and synchronisation = No_sync | Async | Adaptative | Sync
+  and usage = Data | Feedback | Explicit | Reserved
+
+  type descriptor = {
+    address : int ;
+    transfer: transfer ;
+    max_packet_size : int ;
+    interval : int ;
+    refresh : int ;
+    sync_address : int ;
+  } [@@deriving sexp]
+
+  val descriptor_of_raw : raw_descriptor -> descriptor
+end
 
 type interface_descriptor = {
-  id_interface : int;
+  interface : int;
   (** Number of this interface. *)
 
-  id_alternate_setting : int;
+  alternate_setting : int;
   (** Value used to select this alternate setting for this
       interface. *)
 
-  id_interface_class : Class.t;
+  interface_class : Class.t;
   (** USB-IF class code for this interface. *)
 
-  id_interface_sub_class : int;
+  interface_sub_class : int;
   (** USB-IF subclass code for this interface, qualified by the
-      [id_interface_class] value. *)
+      [interface_class] value. *)
 
-  id_interface_protocol : int;
+  interface_protocol : int;
   (** USB-IF protocol code for this interface, qualified by the
-      [id_interface_class] and [id_interface_sub_class] values. *)
+      [interface_class] and [interface_sub_class] values. *)
 
-  id_index_interface : int;
+  index_interface : int;
   (** Index of string descriptor describing this interface. *)
 
-  id_endpoints : endpoint_descriptor array;
+  endpoints : Endpoint.raw_descriptor array;
   (** Array of endpoint descriptors. *)
-}
+} [@@deriving sexp]
 
 type config_descriptor = {
-  cd_configuration_value : int;
+  configuration_value : int;
   (** Identifier value for this configuration *)
 
-  cd_index_configuration : int;
+  index_configuration : int;
   (** Index of string descriptor describing this configuration. *)
 
-  cd_attributes : int;
+  attributes : int;
   (** A bitmask, representing configuration characteristics. *)
 
-  cd_max_power : int;
+  max_power : int;
   (** Maximum power consumption of the USB device from this bus in
       this configuration when the device is fully opreation.
 
       Expressed in units of 2 mA. *)
 
-  cd_interfaces : interface_descriptor array array;
+  interfaces : interface_descriptor array array;
   (** Array of interfaces supported by this configuration.
 
-      [cd_interface.(iface).(altsetting)] designate the interface
+      [interface.(iface).(altsetting)] designate the interface
       descriptor for interface [iface] with alternate setting
       [altsetting]. *)
-}
+} [@@deriving sexp]
 
 val get_active_config_descriptor : device -> config_descriptor
   (** Get the USB configuration descriptor for the currently active
@@ -349,23 +372,9 @@ val get_config_descriptor : device -> int -> config_descriptor
 
 val get_config_descriptor_by_value : device -> int -> config_descriptor
   (** Get a USB configuration descriptor with a specific
-      [cd_configuration_value]. *)
+      [configuration_value]. *)
 
-(** Descriptor types *)
-module DT : sig
-  type t = int
-  val device : t
-  val config : t
-  val string : t
-  val interface : t
-  val endpoint : t
-  val hid : t
-  val report : t
-  val physical : t
-  val hub : t
-end
-
-val get_string_descriptor : handle -> ?timeout : float -> ?lang_id : int -> index : int -> string Lwt.t
+val get_string_descriptor : ?timeout : float -> ?lang_id : int -> handle -> int -> string Lwt.t
   (** Retrieve a string descriptor from a device. *)
 
 (** {6 IOs} *)

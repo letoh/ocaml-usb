@@ -7,6 +7,8 @@
  * This file is a part of ocaml-usb.
  *)
 
+open Sexplib.Std
+open Lwt.Infix
 open Lwt_unix
 
 (* +-----------------------------------------------------------------+
@@ -361,92 +363,177 @@ let open_device_with ~vendor_id ~product_id =
    | USB descriptors                                                 |
    +-----------------------------------------------------------------+ *)
 
-module Class =
-struct
-  type t = int
+module Class = struct
+  type t =
+    | Per_interface
+    | Audio
+    | Communication
+    | Hid
+    | Physical
+    | Printer
+    | Image
+    | Mass_storage
+    | Hub
+    | Data
+    | Smart_card
+    | Content_security
+    | Video
+    | Personal_healthcare
+    | Audio_video_device
+    | Billboard_device_class
+    | Usb_type_c_bridge_class
+    | Diagnostic_device
+    | Wireless_controler
+    | Misc
+    | Application_specific
+    | Vendor_specific
+  [@@deriving sexp]
 
-  let per_interface = 0
-  let audio = 1
-  let communication = 2
-  let hid = 3
-  let physical = 5
-  let printer = 7
-  let ptp = 6
-  let image = 6
-  let mass_storage = 8
-  let hub = 9
-  let data = 10
-  let smart_card = 0x0b
-  let content_security = 0x0d
-  let video = 0x0e
-  let personal_healthcare = 0x0f
-  let diagnostic_device = 0xdc
-  let wireless = 0xe0
-  let application = 0xfe
-  let vendor_specific = 0xff
+  let to_int = function
+    | Per_interface -> 0x00
+    | Audio -> 0x01
+    | Communication -> 0x02
+    | Hid -> 0x03
+    | Physical -> 0x05
+    | Printer -> 0x06
+    | Image -> 0x07
+    | Mass_storage -> 0x08
+    | Hub -> 0x09
+    | Data -> 0x0a
+    | Smart_card -> 0x0b
+    | Content_security -> 0x0d
+    | Video -> 0x0e
+    | Personal_healthcare -> 0x0f
+    | Audio_video_device -> 0x10
+    | Billboard_device_class -> 0x11
+    | Usb_type_c_bridge_class -> 0x12
+    | Diagnostic_device -> 0xdc
+    | Wireless_controler -> 0xe0
+    | Misc -> 0xef
+    | Application_specific -> 0xfe
+    | Vendor_specific -> 0xff
 
-  let to_string n =
-    try
-      List.assoc n [(per_interface, "per interface");
-                    (audio, "audio");
-                    (communication, "communication");
-                    (hid, "HID");
-                    (physical, "physical");
-                    (printer, "printer");
-                    (image, "image");
-                    (mass_storage, "mass storage");
-                    (hub, "HUB");
-                    (data, "data");
-                    (smart_card, "smart card");
-                    (content_security, "content security");
-                    (video, "video");
-                    (personal_healthcare, "personal healthcare");
-                    (diagnostic_device, "diagnostic device");
-                    (wireless, "wireless");
-                    (application, "application");
-                    (vendor_specific, "vendor specific")]
-    with Not_found ->
-      Printf.sprintf "0x%x02x" n
+  let of_int = function
+    | 0x00 -> Per_interface
+    | 0x01 -> Audio
+    | 0x02 -> Communication
+    | 0x03 -> Hid
+    | 0x05 -> Physical
+    | 0x06 -> Image
+    | 0x07 -> Printer
+    | 0x08 -> Mass_storage
+    | 0x09 -> Hub
+    | 0x0a -> Data
+    | 0x0b -> Smart_card
+    | 0x0d -> Content_security
+    | 0x0e -> Video
+    | 0x0f -> Personal_healthcare
+    | 0x10 -> Audio_video_device
+    | 0x11 -> Billboard_device_class
+    | 0x12 -> Usb_type_c_bridge_class
+    | 0xdc -> Diagnostic_device
+    | 0xe0 -> Wireless_controler
+    | 0xef -> Misc
+    | 0xfe -> Application_specific
+    | 0xff -> Vendor_specific
+    | _ -> invalid_arg "Class.of_int"
 end
 
 type device_descriptor = {
-  dd_usb : int;
-  dd_device_class : Class.t;
-  dd_device_sub_class : int;
-  dd_device_protocol : int;
-  dd_max_packet_size : int;
-  dd_vendor_id : int;
-  dd_product_id : int;
-  dd_device : int;
-  dd_index_manufacturer : int;
-  dd_index_product : int;
-  dd_index_serial_number : int;
-  dd_configurations : int;
-}
-type endpoint_descriptor = {
-  ed_endpoint_address : int;
-  ed_attributes : int;
-  ed_max_packet_size : int;
-  ed_interval : int;
-  ed_refresh : int;
-  ed_synch_address : int;
-}
+  usb : int;
+  device_class : Class.t;
+  device_sub_class : int;
+  device_protocol : int;
+  max_packet_size : int;
+  vendor_id : int;
+  product_id : int;
+  device : int;
+  index_manufacturer : int;
+  index_product : int;
+  index_serial_number : int;
+  configurations : int;
+} [@@deriving sexp]
+
+module Endpoint = struct
+  type direction = Input | Output
+  let direction_of_int i = if i <= 1 lsl 7 then Input else Output
+
+  type transfer =
+    | Control
+    | Bulk
+    | Interrupt
+    | Isochronous of synchronisation * usage
+  and synchronisation = No_sync | Async | Adaptative | Sync
+  and usage = Data | Feedback | Explicit | Reserved
+  [@@deriving sexp]
+
+  let transfer_of_int i =
+    match i land 0x03 with
+    | 0 -> Control
+    | 2 -> Bulk
+    | 3 -> Interrupt
+    | 1 -> begin
+      let sync = match (i lsr 2) land 0x03 with
+        | 0 -> No_sync
+        | 1 -> Async
+        | 2 -> Adaptative
+        | 3 -> Sync
+        | _ -> assert false in
+      let usage = match (1 lsr 4) land 0x03 with
+        | 0 -> Data
+        | 1 -> Feedback
+        | 2 -> Explicit
+        | 3 -> Reserved
+        | _ -> assert false in
+      Isochronous (sync, usage)
+    end
+    | _ -> assert false
+
+  type raw_descriptor = {
+    endpoint_address : int;
+    attributes : int;
+    max_packet_size : int;
+    interval : int;
+    refresh : int;
+    sync_address : int;
+  } [@@deriving sexp]
+
+  type descriptor = {
+    address : int ;
+    transfer : transfer ;
+    max_packet_size : int ;
+    interval : int ;
+    refresh : int ;
+    sync_address : int ;
+  } [@@deriving sexp]
+
+  let descriptor_of_raw r = {
+    address = r.endpoint_address land 0x07 ;
+    transfer = transfer_of_int r.attributes ;
+    max_packet_size = r.max_packet_size ;
+    interval = r.interval ;
+    refresh = r.refresh ;
+    sync_address = r.sync_address ;
+  }
+end
+
 type interface_descriptor = {
-  id_interface : int;
-  id_alternate_setting : int;
-  id_interface_class : Class.t;
-  id_interface_sub_class : int;
-  id_interface_protocol : int;
-  id_index_interface : int;
-  id_endpoints : endpoint_descriptor array;
-}
+  interface : int;
+  alternate_setting : int;
+  interface_class : Class.t;
+  interface_sub_class : int;
+  interface_protocol : int;
+  index_interface : int;
+  endpoints : Endpoint.raw_descriptor array;
+} [@@deriving sexp]
+
 type config_descriptor = {
-  cd_configuration_value : int;
-  cd_index_configuration : int;
-  cd_attributes : int;
-  cd_max_power : int;
-  cd_interfaces : interface_descriptor array array;
-}
+  configuration_value : int;
+  index_configuration : int;
+  attributes : int;
+  max_power : int;
+  interfaces : interface_descriptor array array;
+} [@@deriving sexp]
 
 external get_device_descriptor : device -> device_descriptor = "ml_usb_get_device_descriptor"
 external get_active_config_descriptor : device -> config_descriptor = "ml_usb_get_active_config_descriptor"
@@ -551,34 +638,34 @@ end
    | Helpers                                                         |
    +-----------------------------------------------------------------+ *)
 
-let get_string_descriptor handle ?timeout ?lang_id ~index =
+let get_string_descriptor ?timeout ?lang_id handle index =
   let data = Bytes.create 255 in
-  let%lwt lang_id = match lang_id with
+  begin match lang_id with
     | Some lang_id ->
       Lwt.return lang_id
     | None ->
       (* Guess the default language id *)
-      let%lwt n = control_recv
-          ~handle
-          ~endpoint:0
-          ?timeout
-          ~request:Request.get_descriptor
-          ~value:(DT.string lsl 8)
-          ~index:0
-          data 0 (String.length data) in
+      control_recv
+        ~handle
+        ~endpoint:0
+        ?timeout
+        ~request:Request.get_descriptor
+        ~value:(DT.string lsl 8)
+        ~index:0
+        data 0 (String.length data) >>= fun n ->
       if n < 4 then
         Lwt.fail (Failure "USB.get_string_descriptor: cannot retreive default lang id")
       else
         Lwt.return (Char.code data.[2] lor (Char.code data.[3] lsl 8))
-  in
-  let%lwt n = control_recv
-      ~handle
-      ~endpoint:0
-      ?timeout
-      ~request:Request.get_descriptor
-      ~value:(DT.string lsl 8 lor index)
-      ~index:lang_id
-      data 0 (String.length data) in
+  end >>= fun lang_id ->
+  control_recv
+    ~handle
+    ~endpoint:0
+    ?timeout
+    ~request:Request.get_descriptor
+    ~value:(DT.string lsl 8 lor index)
+    ~index:lang_id
+    data 0 (String.length data) >>= fun n ->
   let len = Char.code data.[0] in
   if Char.code data.[1] <> DT.string || len > n then
     Lwt.fail (Failure "USB.get_string_descriptor: invalid control packet")
