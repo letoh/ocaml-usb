@@ -150,14 +150,14 @@ external ml_usb_get_device : device_handle -> device = "ml_usb_get_device"
 external ml_usb_kernel_driver_active : device_handle -> interface -> bool = "ml_usb_kernel_driver_active"
 external ml_usb_detach_kernel_driver : device_handle -> interface -> unit = "ml_usb_detach_kernel_driver"
 external ml_usb_attach_kernel_driver : device_handle -> interface -> unit = "ml_usb_attach_kernel_driver"
-external ml_usb_bulk_recv : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_bulk_recv"
-external ml_usb_bulk_send : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_bulk_send"
-external ml_usb_interrupt_recv : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_interrupt_recv"
-external ml_usb_interrupt_send : device_handle * endpoint * int * string * int * int * (int result -> unit) -> transfer = "ml_usb_interrupt_send"
-external ml_usb_control_recv : device_handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int -> transfer = "ml_usb_control_recv"
-external ml_usb_control_send : device_handle * endpoint * int * string * int * int * (int result -> unit) * recipient * request_type * request * int * int -> transfer = "ml_usb_control_send"
-external ml_usb_iso_recv : device_handle * endpoint * int * string * int * int * (int result list result -> unit) * int * int list -> transfer = "ml_usb_iso_recv"
-external ml_usb_iso_send : device_handle * endpoint * int * string * int * int * (int result list result -> unit) * int * int list -> transfer = "ml_usb_iso_send"
+external ml_usb_bulk_recv : device_handle * endpoint * int * bytes * int * int * (int result -> unit) -> transfer = "ml_usb_bulk_recv"
+external ml_usb_bulk_send : device_handle * endpoint * int * bytes * int * int * (int result -> unit) -> transfer = "ml_usb_bulk_send"
+external ml_usb_interrupt_recv : device_handle * endpoint * int * bytes * int * int * (int result -> unit) -> transfer = "ml_usb_interrupt_recv"
+external ml_usb_interrupt_send : device_handle * endpoint * int * bytes * int * int * (int result -> unit) -> transfer = "ml_usb_interrupt_send"
+external ml_usb_control_recv : device_handle * endpoint * int * bytes * int * int * (int result -> unit) * recipient * request_type * request * int * int -> transfer = "ml_usb_control_recv"
+external ml_usb_control_send : device_handle * endpoint * int * bytes * int * int * (int result -> unit) * recipient * request_type * request * int * int -> transfer = "ml_usb_control_send"
+external ml_usb_iso_recv : device_handle * endpoint * int * bytes * int * int * (int result list result -> unit) * int * int list -> transfer = "ml_usb_iso_recv"
+external ml_usb_iso_send : device_handle * endpoint * int * bytes * int * int * (int result list result -> unit) * int * int list -> transfer = "ml_usb_iso_send"
 external ml_usb_cancel_transfer : transfer -> unit = "ml_usb_cancel_transfer"
 
 external ml_usb_claim_interface_job : device_handle -> interface -> [ `claim_interface ] job = "ml_usb_claim_interface_job"
@@ -482,7 +482,7 @@ let make_timeout = function
 
 let transfer name func ~handle ~endpoint ?timeout buffer offset length =
   check_handle handle;
-  if offset < 0 || length < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
+  if offset < 0 || length < 0 || offset > Bytes.length buffer - length then invalid_arg ("USB." ^ name);
   let waiter, wakener = Lwt.task () in
   let transfer = func (handle.handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result name wakener) in
   Lwt.on_cancel waiter (fun () -> ml_usb_cancel_transfer transfer);
@@ -495,7 +495,7 @@ let interrupt_send = transfer "interrupt_send" ml_usb_interrupt_send
 
 let control_transfer name func ~handle ~endpoint ?timeout ?(recipient=Device) ?(request_type=Standard) ~request ~value ~index buffer offset length =
   check_handle handle;
-  if offset < 0 || length < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
+  if offset < 0 || length < 0 || offset > Bytes.length buffer - length then invalid_arg ("USB." ^ name);
   let waiter, wakener = Lwt.task () in
   let transfer = func (handle.handle, endpoint, make_timeout timeout, buffer, offset, length, handle_result name wakener, recipient, request_type, request, value, index) in
   Lwt.on_cancel waiter (fun () -> ml_usb_cancel_transfer transfer);
@@ -517,7 +517,7 @@ let iso_transfer name func ~handle ~endpoint ?timeout buffer offset lengths =
   else begin
     List.iter (fun length -> if length < 0 then invalid_arg ("USB." ^ name)) lengths;
     let length = List.fold_left (+) 0 lengths in
-    if offset < 0 || offset > String.length buffer - length then invalid_arg ("USB." ^ name);
+    if offset < 0 || offset > Bytes.length buffer - length then invalid_arg ("USB." ^ name);
     let waiter, wakener = Lwt.task () in
     let transfer = func (handle.handle, endpoint, make_timeout timeout, buffer, offset, length, handle_iso_result name wakener, List.length lengths, lengths) in
     Lwt.on_cancel waiter (fun () -> ml_usb_cancel_transfer transfer);
@@ -565,11 +565,11 @@ let get_string_descriptor handle ?timeout ?lang_id ~index =
           ~request:Request.get_descriptor
           ~value:(DT.string lsl 8)
           ~index:0
-          data 0 (String.length data) in
+          data 0 (Bytes.length data) in
       if n < 4 then
         Lwt.fail (Failure "USB.get_string_descriptor: cannot retreive default lang id")
       else
-        Lwt.return (Char.code data.[2] lor (Char.code data.[3] lsl 8))
+        Lwt.return (Char.code (Bytes.get data 2) lor (Char.code (Bytes.get data 3) lsl 8))
   in
   let%lwt n = control_recv
       ~handle
@@ -578,9 +578,9 @@ let get_string_descriptor handle ?timeout ?lang_id ~index =
       ~request:Request.get_descriptor
       ~value:(DT.string lsl 8 lor index)
       ~index:lang_id
-      data 0 (String.length data) in
-  let len = Char.code data.[0] in
-  if Char.code data.[1] <> DT.string || len > n then
+      data 0 (Bytes.length data) in
+  let len = Char.code (Bytes.get data 0) in
+  if Char.code (Bytes.get data 1) <> DT.string || len > n then
     Lwt.fail (Failure "USB.get_string_descriptor: invalid control packet")
   else
-    Lwt.return (String.sub data 2 (len - 2))
+    Lwt.return (Bytes.to_string (Bytes.sub data 2 (len - 2)))

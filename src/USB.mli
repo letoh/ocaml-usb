@@ -407,14 +407,14 @@ val bulk_recv :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  string -> int -> int -> int Lwt.t
+  bytes -> int -> int -> int Lwt.t
   (** [bulk_recv ~handle ~endpoint ?timeout buffer offset length] *)
 
 val bulk_send :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  string -> int -> int -> int Lwt.t
+  bytes -> int -> int -> int Lwt.t
   (** [bulk_send ~handle ~endpoint ?timeout buffer offset length] *)
 
 (** {8 Interrupt transfers} *)
@@ -423,14 +423,14 @@ val interrupt_recv :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  string -> int -> int -> int Lwt.t
+  bytes -> int -> int -> int Lwt.t
   (** [interrupt_recv ~handle ~endpoint ?timeout buffer offset length] *)
 
 val interrupt_send :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  string -> int -> int -> int Lwt.t
+  bytes -> int -> int -> int Lwt.t
   (** [interrupt_send ~handle ~endpoint ?timeout buffer offset length] *)
 
 (** {8 Isochronous transfers} *)
@@ -447,13 +447,13 @@ val iso_recv :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  string -> int -> int list -> iso_result list Lwt.t
+  bytes -> int -> int list -> iso_result list Lwt.t
 
 val iso_send :
   handle : handle ->
   endpoint : endpoint ->
   ?timeout : float ->
-  string -> int -> int list -> iso_result list Lwt.t
+  bytes -> int -> int list -> iso_result list Lwt.t
 
 (** {8 Control transfers} *)
 
@@ -480,7 +480,7 @@ val control_send :
   request : request ->
   value : int ->
   index : int ->
-  string -> int -> int -> int Lwt.t
+  bytes -> int -> int -> int Lwt.t
   (** Sends a control packet.
 
       @param recipient defaults to {!Device}
@@ -495,7 +495,7 @@ val control_recv :
   request : request ->
   value : int ->
   index : int ->
-  string -> int -> int -> int Lwt.t
+  bytes -> int -> int -> int Lwt.t
   (** Receives a control packet.
 
       @param recipient defaults to {!Device}

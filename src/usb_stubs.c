@@ -839,7 +839,7 @@ static void ml_usb_handle_recv(struct libusb_transfer *transfer)
     if (transfer->type == LIBUSB_TRANSFER_TYPE_CONTROL) leading_setup = LIBUSB_CONTROL_SETUP_SIZE;
 
     /* Copy bytes from the C memory to the caml string: */
-    memcpy(String_val(Field(meta, 1)) + Long_val(Field(meta, 2)),
+    memcpy(Bytes_val(Field(meta, 1)) + Long_val(Field(meta, 2)),
            transfer->buffer + leading_setup, transfer->actual_length);
     /* Returns [OK actual_length] */
     result = caml_alloc(1, 0);
@@ -966,7 +966,7 @@ CAMLprim value ml_usb_send(value desc, enum libusb_transfer_type type, int num_i
   /* Copy data to send from the managed memory to the C memory: */
   int leading_setup = 0;
   if (type == LIBUSB_TRANSFER_TYPE_CONTROL) leading_setup = LIBUSB_CONTROL_SETUP_SIZE;
-  memcpy(transfer->buffer + leading_setup, String_val(Field(desc, 3)) + Long_val(Field(desc, 4)), Long_val(Field(desc, 5)));
+  memcpy(transfer->buffer + leading_setup, Bytes_val(Field(desc, 3)) + Long_val(Field(desc, 4)), Long_val(Field(desc, 5)));
 
   int res = libusb_submit_transfer(transfer);
   if (res) ml_usb_error(res, "submit_transfer");
