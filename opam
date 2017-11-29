@@ -1,0 +1,33 @@
+opam-version: "1.2"
+name:         "usb"
+version:      "1.3.0"
+authors:      "Jeremie Dimino <jeremie@dimino.org>"
+maintainer:   "letoh.tw@gmail.com"
+homepage:     "https://github.com/letoh/ocaml-usb"
+bug-reports:  "https://github.com/letoh/ocaml-usb/issues"
+dev-repo:     "https://github.com/letoh/ocaml-usb.git"
+
+build: [
+  ["./configure"]
+  [make]
+]
+
+install: [make "install"]
+
+remove: ["ocamlfind" "remove" "usb"]
+
+available: [ ocaml-version >= "4.02" ]
+
+depends: [
+  "ocamlfind"
+  "oasis" {>= "0.3.0"}
+  "camlp4"
+  "lwt" {>= "2.0.0"}
+  "ocamlbuild" {build}
+]
+
+depexts: [
+  [["debian"] ["libusb-1.0-0-dev"]]
+  [["ubuntu"] ["libusb-1.0-0-dev"]]
+  [["archlinux"] ["libusb"]]
+]
