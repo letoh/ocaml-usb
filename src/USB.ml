@@ -552,7 +552,7 @@ end
    +-----------------------------------------------------------------+ *)
 
 let get_string_descriptor handle ?timeout ?lang_id ~index =
-  let data = Bytes.create 255 in
+  let data = Bytes.to_string (Bytes.create 255) in
   let%lwt lang_id = match lang_id with
     | Some lang_id ->
       Lwt.return lang_id
