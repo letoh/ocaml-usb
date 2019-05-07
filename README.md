@@ -10,7 +10,7 @@ Dependencies
 * [OCaml](http://caml.inria.fr/ocaml/) (>= 3.11)
 * [findlib](http://projects.camlcity.org/projects/findlib.html)
 * [lwt](http://ocsigen.org/lwt/) (>= 2.0.0)
-* [libusb-1.0](http://www.libusb.org/)
+* [libusb-1.0](http://www.libusb.info/)
 
 For building the development version, you also need to install
 [oasis](http://oasis.forge.ocamlcore.org/) (>= 0.3.0).
@@ -32,7 +32,7 @@ To build the documentation:
 
 It will then be installed by `make install`.
 
-### Tests _(optionnal)_
+### Tests _(optional)_
 
 To build and execute tests:
 
