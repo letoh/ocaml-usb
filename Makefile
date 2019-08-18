@@ -1,63 +1,22 @@
-# Makefile
-# --------
-# Copyright : (c) 2012, Jeremie Dimino <jeremie@dimino.org>
-# Licence   : BSD3
+# Copyright : (c) 2019, letoh
+# License   : BSD-3-Clause
 #
-# Generic Makefile for oasis project
+PKG := $(basename $(wildcard *.opam))
 
-# Set to setup.exe for the release
-SETUP := setup-dev.exe
+default all: build
 
-# Default rule
-default: build
+build clean:
+	@dune $@
 
-# Setup for the development version
-setup-dev.exe: _oasis setup.ml
-	./config_pkg || true
-	sed '/^#/D' setup.ml > setup_dev.ml
-	ocamlfind ocamlopt -o $@ -linkpkg -package ocamlbuild,oasis.dynrun setup_dev.ml || \
-	  ocamlfind ocamlc -o $@ -linkpkg -package ocamlbuild,oasis.dynrun setup_dev.ml || true
-	rm -f setup_dev.*
+$(PKG).install: build
 
-# Setup for the release
-setup.exe: setup.ml
-	./config_pkg || true
-	ocamlopt.opt -o $@ $< || ocamlopt -o $@ $< || ocamlc -o $@ $<
-	rm -f setup.cmx setup.cmi setup.o setup.obj setup.cmo
+install uninstall: ARGS := $(if $(PREFIX),--prefix=$(PREFIX),)
+install uninstall: $(PKG).install
+	@dune $@ $(ARGS)
 
-build: $(SETUP) setup.data
-	./$(SETUP) -build $(BUILDFLAGS)
+reinstall: uninstall install
 
-doc: $(SETUP) setup.data build
-	./$(SETUP) -doc $(DOCFLAGS)
+distclean: clean
+	@./configure --distclean || true
 
-test: $(SETUP) setup.data build
-	./$(SETUP) -test $(TESTFLAGS)
-
-all: $(SETUP)
-	./$(SETUP) -all $(ALLFLAGS)
-
-install: $(SETUP) setup.data
-	./$(SETUP) -install $(INSTALLFLAGS)
-
-uninstall: $(SETUP) setup.data
-	./$(SETUP) -uninstall $(UNINSTALLFLAGS)
-
-reinstall: $(SETUP) setup.data
-	./$(SETUP) -reinstall $(REINSTALLFLAGS)
-
-clean: $(SETUP)
-	./$(SETUP) -clean $(CLEANFLAGS)
-
-distclean: $(SETUP)
-	./config_pkg --distclean || true
-	./$(SETUP) -distclean $(DISTCLEANFLAGS)
-	rm -f setup*.exe
-
-configure: $(SETUP)
-	./$(SETUP) -configure $(CONFIGUREFLAGS)
-
-setup.data: $(SETUP)
-	./$(SETUP) -configure $(CONFIGUREFLAGS)
-
-.PHONY: default build doc test all install uninstall reinstall clean distclean configure
+.PHONY: default install uninstall reinstall clean distclean

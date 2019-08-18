@@ -9,24 +9,26 @@
 OCAMLFIND := ocamlfind
 OCAMLBUILD := ocamlbuild
 
+OCAMLBUILD += -use-ocamlfind
+
 # Use classic-display when compiling under a terminal which does not
 # support ANSI sequence:
 ifeq ($(TERM),dumb)
 OCAMLBUILD += -classic-display
 endif
 
-all: best
+SRCS := list_devices.ml
+BIN  := $(SRCS:.ml=.byte)
 
-best:
-	$(OCAMLBUILD) best
+all: $(BIN)
 
-byte:
-	$(OCAMLBUILD) byte
+%.byte: %.ml
+	@$(OCAMLBUILD) $@
 
-native:
-	$(OCAMLBUILD) native
+%.native: %.ml
+	@$(OCAMLBUILD) $@
 
 clean:
-	$(OCAMLBUILD) -clean
+	@$(OCAMLBUILD) -clean
 
 .PHONY: best all byte native clean

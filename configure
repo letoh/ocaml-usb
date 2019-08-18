@@ -1,5 +1,24 @@
 #!/bin/sh
 
-# OASIS_START
-make configure CONFIGUREFLAGS="$*"
-# OASIS_STOP
+config_lwt () {
+    LWT_VER=$(opam config var lwt:version)
+    case "${LWT_VER}" in
+	4.*)
+	    patch $RECOVER --no-backup-if-mismatch -r - -f -p1 < patches/use-lwt_ppx.patch
+	    ;;
+	\#undefined)
+	    echo not installed
+	    return 1
+	    ;;
+    esac
+}
+
+
+case $1 in
+    --distclean)
+	RECOVER=-R config_lwt
+	;;
+    *)
+	config_lwt
+	;;
+esac

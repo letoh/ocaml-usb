@@ -9,11 +9,10 @@ dev-repo: "git+https://github.com/letoh/ocaml-usb.git"
 
 depends: [
   "ocaml" {>= "4.02.0"}
-  ("lwt" {>= "2.4.7"} & "lwt" {< "4.0.0"} | "lwt_ppx")
-  "ocamlfind" {build}
-  "oasis" {build & >= "0.3.0"}
-  "ocamlbuild" {build}
+  ("lwt" {>= "2.4.7" & < "4.0.0"} | "lwt_ppx")
+  "stdlib-shims" {build & ocaml:version < "4.08.0"}
   "conf-pkg-config" {build}
+  "dune" {build}
 ]
 
 depexts: [
@@ -26,19 +25,22 @@ depexts: [
   ["libusb1.0-devel"] {os-family = "mageia"}
 ]
 
+depopts: [
+  "ocamlbuild" {build}
+  "odoc" {with-doc}
+]
+
 patches: [
   "patches/use-lwt_ppx.patch" {lwt:version >= "4.0.0"}
 ]
 
 build: [
-  ["./configure"]
-  ["./configure" "--enable-tests"] {with-test}
-  [make]
-  [make "doc"] {with-doc}
-  [make "test"] {with-test}
+  ["dune" "build" "-p" name "-j" jobs]
 ]
 
-install: [make "install"]
+install: [
+  [make "install"]
+]
 
 remove: [["ocamlfind" "remove" "usb"]]
 

@@ -1,40 +1,43 @@
-OCaml-USB
-=========
+# OCaml-USB
 
 OCaml-USB is a binding to libusb-1.0. It uses Lwt to make it easy to
 use asynchronous IO features of libusb-1.0.
 
-Dependencies
-------------
+
+## Dependencies
 
 * [OCaml](http://ocaml.org/) (>= 4.02.0)
 * [findlib](http://projects.camlcity.org/projects/findlib.html)
 * [lwt](http://ocsigen.org/lwt/) (>= 2.4.7)
-* [libusb-1.0](http://www.libusb.org/)
+* [lwt_ppx](https://github.com/ocsigen/lwt)
+* [conf-pkg-config](https://opam.ocaml.org/packages/conf-pkg-config/)
+* [libusb](https://libusb.info/) (>= 1.0.0)
 
 For building the development version, you also need to install
-[oasis](http://oasis.forge.ocamlcore.org/) (>= 0.3.0)
+* [dune](https://github.com/ocaml/dune)
 
-Installation
-------------
 
-To build and install ocaml-usb:
+## Installation
 
-    $ ./configure
-    $ make
-    $ make install
+### From opam
 
-### Documentation _(optional)_
+```bash
+opam install usb
+```
 
-To build the documentation:
 
-    $ make doc
+### From source
 
-It will then be installed by `make install`.
+```bash
+./configure
+make
+make install
+```
 
-### Tests _(optionnal)_
+## Examples
 
-To build and execute tests:
+```bash
+cd examples
+make
+```
 
-    $ ./configure --enable-tests
-    $ make test
