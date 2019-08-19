@@ -175,7 +175,11 @@ CAMLprim value ml_usb_exit()
 
 CAMLprim value ml_usb_set_debug(value level)
 {
+#if defined(LIBUSB_API_VERSION) && (LIBUSB_API_VERSION >= 0x01000106)
+  libusb_set_option(NULL, LIBUSB_OPTION_LOG_LEVEL, Int_val(level));
+#else
   libusb_set_debug(NULL, Int_val(level));
+#endif
   return Val_unit;
 }
 
