@@ -14,7 +14,7 @@ val handle_error : ('a -> 'b) -> 'a -> 'b
       result.  If the exception {!Error} or {!Transport} is raised, it
       prints a message describing the error and exits with code 2. *)
 
-(** {6 General errors} *)
+(** {1 General errors} *)
 
 (** Any function of this module may raise one of the following
     errors: *)
@@ -68,7 +68,7 @@ val error_message : error -> string
   (** [error_message error] returns a human readable description of
       the error *)
 
-(** {6 Types} *)
+(** {1 Types} *)
 
 (** A USB endpoint direction *)
 type direction = In | Out
@@ -76,17 +76,17 @@ type direction = In | Out
 (** A USB endpoint number *)
 type endpoint = int
 
-(** {6 Miscellanies} *)
+(** {1 Miscellaneous} *)
 
 val init : unit Lazy.t
   (** When forced, [init] initialises libusb. This is automatically
       done so you do not need to do it manually. By the way you can do
-      it to catch initialisation errors. *)
+      it to catch initialization errors. *)
 
 val set_debug : [ `quiet | `error | `warning | `verbose ] -> unit
   (** [set_debug level] set the debug level. *)
 
-(** {6 Device informations} *)
+(** {1 Device informations} *)
 
 type device
   (** Representation of a device description *)
@@ -106,7 +106,7 @@ val get_max_packet_size : device : device -> direction : direction -> endpoint :
       function to retrieve the [wMaxPacketSize] value for a particular
       endpoint in the active device configuration. *)
 
-(** {6 Device use} *)
+(** {1 Device use} *)
 
 type handle
   (** A handle allows you to perform I/O on the device in question. *)
@@ -189,7 +189,7 @@ val clear_halt : handle -> endpoint -> unit Lwt.t
 val reset_device : handle -> unit Lwt.t
   (** [reset_device handle] reset the given device *)
 
-(** {6 USB descriptors} *)
+(** {1 USB descriptors} *)
 
 (** Device class codes *)
 module Class : sig
@@ -368,9 +368,9 @@ end
 val get_string_descriptor : handle -> ?timeout : float -> ?lang_id : int -> index : int -> string Lwt.t
   (** Retrieve a string descriptor from a device. *)
 
-(** {6 IOs} *)
+(** {1 IOs} *)
 
-(** {8 Errors} *)
+(** {2 Errors} *)
 
 (** Transfers may fails with any of the following error: *)
 type transfer_error =
@@ -401,7 +401,7 @@ exception Transfer of transfer_error * string
 val transfer_error_message : transfer_error -> string
   (** [transfer_error_message error] *)
 
-(** {8 Bulk transfers} *)
+(** {2 Bulk transfers} *)
 
 val bulk_recv :
   handle : handle ->
@@ -417,7 +417,7 @@ val bulk_send :
   string -> int -> int -> int Lwt.t
   (** [bulk_send ~handle ~endpoint ?timeout buffer offset length] *)
 
-(** {8 Interrupt transfers} *)
+(** {2 Interrupt transfers} *)
 
 val interrupt_recv :
   handle : handle ->
@@ -433,7 +433,7 @@ val interrupt_send :
   string -> int -> int -> int Lwt.t
   (** [interrupt_send ~handle ~endpoint ?timeout buffer offset length] *)
 
-(** {8 Isochronous transfers} *)
+(** {2 Isochronous transfers} *)
 
 (** Result of the transfer of one packet in an isochronous
     transfer: *)
@@ -455,7 +455,7 @@ val iso_send :
   ?timeout : float ->
   string -> int -> int list -> iso_result list Lwt.t
 
-(** {8 Control transfers} *)
+(** {2 Control transfers} *)
 
 type recipient =
   | Device

@@ -19,4 +19,7 @@ reinstall: uninstall install
 distclean: clean
 	@./configure --distclean || true
 
+doc:
+	@dune build @doc
+
 .PHONY: default install uninstall reinstall clean distclean
