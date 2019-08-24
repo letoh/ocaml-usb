@@ -235,7 +235,7 @@ let init = lazy(
   ignore (Lwt_sequence.add_r leave_iter Lwt_main.leave_iter_hooks);
   (* Cleanup libusb on exit. *)
   let exit = lazy(ml_usb_exit ()) in
-  at_exit (fun _ -> Lazy.force exit)
+  ignore (Lwt_sequence.add_r (fun _ -> Lazy.force exit |> Lwt.return) Lwt_main.exit_hooks)
 )
 
 let set_debug level =
