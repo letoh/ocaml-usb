@@ -1,0 +1,36 @@
+diff --git a/.merlin b/.merlin
+index 17a31a7..e7badd4 100644
+--- a/.merlin
++++ b/.merlin
+@@ -1,4 +1,4 @@
+ B _build/src
+ S src
+-PKG lwt lwt.ppx
++PKG lwt lwt_ppx
+ FLG -w +a-4-40..42-44-45-48
+diff --git a/_oasis b/_oasis
+index ca157ca..09320c3 100644
+--- a/_oasis
++++ b/_oasis
+@@ -17,7 +17,7 @@ Library "usb"
+   FindlibName: usb
+   Path: src
+   Modules: USB
+-  BuildDepends: lwt.unix, lwt.ppx
++  BuildDepends: lwt.unix, lwt_ppx
+   XMETADescription: Bindings for libusb-1.0
+   XMETARequires: lwt.unix
+   CSources: usb_stubs.c
+diff --git a/examples/myocamlbuild.ml b/examples/myocamlbuild.ml
+index ae525fb..3440abc 100644
+--- a/examples/myocamlbuild.ml
++++ b/examples/myocamlbuild.ml
+@@ -42,7 +42,7 @@ let packages = [
+   "lwt.glib";
+   "lwt.text";
+   "lwt.unix";
+-  "lwt.ppx";
++  "lwt_ppx";
+   "usb";
+ ]
+ 

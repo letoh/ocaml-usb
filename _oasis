@@ -4,7 +4,7 @@ Version: 1.3.0
 LicenseFile: COPYING
 License: BSD-3-clause
 Authors: Jérémie Dimino
-Homepage: http://ocaml-usb.forge.ocamlcore.org/
+Homepage: https://github.com/letoh/ocaml-usb
 BuildTools: ocamlbuild
 Plugins: DevFiles (0.3), META (0.3)
 XDevFilesEnableMakefile: false
@@ -21,6 +21,7 @@ Library "usb"
   XMETADescription: Bindings for libusb-1.0
   XMETARequires: lwt.unix
   CSources: usb_stubs.c
+  CCopt: -I"`ocamlfind query lwt`/unix"
 
 Document "ocaml-usb-api"
   Title: API reference for ocaml-usb
@@ -33,5 +34,5 @@ Document "ocaml-usb-api"
 
 SourceRepository head
   Type: git
-  Location: https://github.com/diml/ocaml-usb.git
-  Browser: https://github.com/diml/ocaml-usb
+  Location: https://github.com/letoh/ocaml-usb.git
+  Browser: https://github.com/letoh/ocaml-usb

@@ -7,13 +7,13 @@ use asynchronous IO features of libusb-1.0.
 Dependencies
 ------------
 
-* [OCaml](http://caml.inria.fr/ocaml/) (>= 3.11)
+* [OCaml](http://ocaml.org/) (>= 4.02.0)
 * [findlib](http://projects.camlcity.org/projects/findlib.html)
-* [lwt](http://ocsigen.org/lwt/) (>= 2.0.0)
+* [lwt](http://ocsigen.org/lwt/) (>= 2.4.7)
 * [libusb-1.0](http://www.libusb.org/)
 
 For building the development version, you also need to install
-[oasis](http://oasis.forge.ocamlcore.org/) (>= 0.3.0).
+[oasis](http://oasis.forge.ocamlcore.org/) (>= 0.3.0)
 
 Installation
 ------------
