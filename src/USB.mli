@@ -10,7 +10,7 @@
 (** Module for USB communication *)
 
 val handle_error : ('a -> 'b) -> 'a -> 'b
-  (** [handle_unix_error f x] applies [f] to [x] and returns the
+  (** [handle_error f x] applies [f] to [x] and returns the
       result.  If the exception {!Error} or {!Transport} is raised, it
       prints a message describing the error and exits with code 2. *)
 
@@ -112,7 +112,7 @@ type handle
   (** A handle allows you to perform I/O on the device in question. *)
 
 type interface = int
-    (** An interface number on a device *)
+  (** An interface number on a device *)
 
 val open_device : device -> handle
   (** Open a device and obtain a device handle.
@@ -168,7 +168,7 @@ val release_interface : handle -> interface -> unit Lwt.t
       first alternate setting. *)
 
 type configuration = int
-    (** A device configuration *)
+  (** A device configuration *)
 
 val get_configuration : handle -> configuration Lwt.t
   (** [get_configuration handle] returns the current configuration of
