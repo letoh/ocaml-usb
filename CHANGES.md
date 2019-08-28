@@ -1,3 +1,12 @@
+1.3.1 (2019-08-28)
+------------------
+
+* feat: add ppx support (#2)
+* fix: make control transfer work (#3)
+* fix: proper cleanup (#1)
+* build: fix compilation issue with safe-string (#5)
+* build: remove camlp4 from the dependencies
+
 1.3.0 (2012-07-30)
 ------------------
 
