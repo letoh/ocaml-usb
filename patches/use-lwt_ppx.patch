@@ -5,8 +5,8 @@ index 17a31a7..e7badd4 100644
 @@ -1,4 +1,4 @@
  B _build/src
  S src
--PKG lwt lwt.ppx
-+PKG lwt lwt_ppx
+-PKG lwt lwt_ppx
++PKG lwt lwt.ppx
  FLG -w +a-4-40..42-44-45-48
 diff --git a/src/dune b/src/dune
 index af55153..4035909 100644
@@ -15,9 +15,9 @@ index af55153..4035909 100644
 @@ -4,7 +4,7 @@
   (synopsis    "OCaml bindings for libusb-1.0")
   (libraries   lwt.unix)
-  (flags       (:standard -w -3-27-37))
-- (preprocess  (pps lwt.ppx))
-+ (preprocess  (pps lwt_ppx))
+  (flags       (:standard -w -3-16-27-37))
+- (preprocess  (pps lwt_ppx))
++ (preprocess  (pps lwt.ppx))
   (c_names         usb_stubs)
   (c_flags         (:include c_flags.sexp))
   (c_library_flags (:include c_library_flags.sexp)))

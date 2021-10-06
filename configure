@@ -3,10 +3,10 @@
 config_lwt () {
     LWT_VER=$(opam config var lwt:version)
     case "${LWT_VER}" in
-	4.*)
+	2.* | 3.* | \#undefined)
 	    patch $RECOVER --no-backup-if-mismatch -r - -f -p1 < patches/use-lwt_ppx.patch
 	    ;;
-	\#undefined)
+	*)
 	    echo not installed
 	    return 1
 	    ;;

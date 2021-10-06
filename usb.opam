@@ -31,7 +31,7 @@ depopts: [
 ]
 
 patches: [
-  "patches/use-lwt_ppx.patch" {lwt:version >= "4.0.0"}
+  "patches/use-lwt_ppx.patch" {lwt:version < "4.0.0"}
 ]
 
 build: [
