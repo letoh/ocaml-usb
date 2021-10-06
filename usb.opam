@@ -39,12 +39,6 @@ build: [
   ["dune" "build" "@doc" "-p" name] {with-doc}
 ]
 
-install: [
-  [make "install"]
-]
-
-remove: [["ocamlfind" "remove" "usb"]]
+install: [make "install"]
 
 synopsis: "OCaml bindings for libusb-1.0"
-
-flags: light-uninstall
