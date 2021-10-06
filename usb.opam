@@ -10,7 +10,7 @@ dev-repo: "git+https://github.com/letoh/ocaml-usb.git"
 depends: [
   "ocaml" {>= "4.02.0"}
   ("lwt" {>= "2.4.7" & < "4.0.0"} | "lwt_ppx")
-  "stdlib-shims" {build & ocaml:version < "4.08.0"}
+  "stdlib-shims" {build}
   "conf-pkg-config" {build}
   "dune" {build}
 ]
